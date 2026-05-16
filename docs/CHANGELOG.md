@@ -4,6 +4,30 @@
 
 ---
 
+## [0.2.0] — 2026-05-16 — Infrastructure Stabilization
+
+### Added
+- GitHub repository connected (`github.com/Gampunk/MarketPulse`)
+- `develop` branch established (active development branch)
+- `frontend/vercel.json` — correct Vercel deployment config (framework: vite, root-relative paths)
+- Supabase project created and credentials integrated
+- `.env.local` configured with Supabase credentials (local development)
+- Vercel environment variables configured (Supabase URL + anon key for production)
+- `frontend/.gitignore` — frontend-specific ignores
+
+### Fixed
+- **Deployment root mismatch:** Original `vercel.json` was at project root but Vercel needed frontend-relative config. Moved to `frontend/vercel.json` with Vercel Root Directory setting `frontend/`
+- **SPA routing in production:** Added catch-all rewrite rule (`/(.*) → /index.html`) to support React Router client-side routing in Vercel deployment
+- **Environment variable pipeline:** Confirmed `VITE_` prefix required for Vite build-time variable injection — all Supabase keys now correctly prefixed
+
+### Validated
+- Production deployment: ✅ Serving correctly from Vercel
+- Preview deployment: ✅ Auto-triggered on branch push
+- SPA routing: ✅ React Router works in production (no 404 on direct URL access)
+- Environment variables: ✅ Supabase credentials available in both local and Vercel environments
+
+---
+
 ## [0.1.0] — 2026-05-16 — Phase 1: Project Foundation
 
 ### Added
@@ -22,8 +46,8 @@
 - `src/components/layout/Sidebar.tsx` — watchlist sidebar with symbol navigation
 - `src/pages/DashboardPage.tsx` — dashboard with active symbol display and stat card placeholders
 - `src/App.tsx` — React Router v7 + TanStack Query v5 QueryClient
-- `/api/health.ts` — Vercel Function health check endpoint
-- `vercel.json` — Vercel build configuration (frontend/dist output)
+- `/api/health.ts` — Vercel Function health check endpoint (not yet deployed)
+- `vercel.json` — initial Vercel build configuration (superseded by `frontend/vercel.json`)
 - `.env.example` — environment variable template
 - `tsconfig.json` — root TypeScript config for Vercel Functions
 

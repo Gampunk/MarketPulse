@@ -41,3 +41,14 @@ Thumbs.db
 .supabase/
 
 .vercel
+
+# Shared/private governance systems
+Shared-System/
+Internal-Systems/
+
+# Sensitive framework files
+system/master_project_framework.md
+
+# Sensitive docs
+*.private.md
+*.secrets.md

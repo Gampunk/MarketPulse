@@ -219,3 +219,88 @@ Architecture decisions log. Changes to these decisions require tradeoff analysis
 - Data abstraction layer (MarketDataSource interface) will be designed from day one to allow clean forex integration
 
 **Decision Confidence:** HIGH
+
+---
+
+## DEC-011 — Vercel Deployment Root: `frontend/`
+
+**Date:** 2026-05-16
+**Status:** APPROVED — ACTIVE
+
+**Decision:** Set Vercel's "Root Directory" project setting to `frontend/`. Place `vercel.json` inside `frontend/` with framework-relative paths.
+
+**Context:** The project uses a monorepo-style layout with `/frontend` containing the React app and `/api` containing the planned backend. During initial deployment, placing `vercel.json` at the repo root with `cd frontend && npm run build` caused path resolution issues and nested directory errors.
+
+**Rationale:**
+- `vercel.json` placed inside the Root Directory removes all path ambiguity
+- Build commands (`npm run build`) run correctly relative to `frontend/`
+- Output directory (`dist`) is correctly resolved
+- Simpler, more idiomatic Vite + Vercel deployment pattern
+- Vercel auto-detects the Vite framework when the framework is at the root
+
+**Tradeoff:** The `/api/` folder at the project root is now outside the Vercel deployment scope. Backend functions must be relocated to `frontend/api/` when needed (Phase 3).
+
+**Decision Confidence:** HIGH
+
+---
+
+## DEC-012 — Backend API Deployment Deferred to Phase 3
+
+**Date:** 2026-05-16
+**Status:** APPROVED
+
+**Decision:** Backend Vercel Functions (`/api/health.ts`) are not deployed in Phase 1. Backend integration is deferred until Phase 3 when the OHLCV caching endpoint is actually required.
+
+**Rationale:**
+- Phase 1 and Phase 2 (live price engine) require no backend — Binance WebSocket is a direct browser connection
+- Deploying an unneeded backend layer prematurely adds complexity and risk
+- The Supabase project is created and credentials are configured — the DB layer is ready when needed
+- Relocating `/api/` inside `frontend/api/` will be done in Phase 3 as a clean, intentional step
+
+**Accepted Risk:** The root-level `/api/health.ts` is dead code until relocation. Tracked in Tech Debt as TD-005.
+
+**Decision Confidence:** HIGH
+
+---
+
+## DEC-013 — Preview Deployments Validated Before Production Promotion
+
+**Date:** 2026-05-16
+**Status:** APPROVED — OPERATIONAL POLICY
+
+**Decision:** All feature work is validated on preview deployments (from `develop` branch) before merging to `main` (production).
+
+**Rationale:**
+- Vercel automatically generates preview URLs for every push to non-production branches
+- Preview validation catches deployment-specific issues (env var injection, routing, build errors) that local testing cannot catch
+- `main` must remain the stable, production-quality branch
+- This mirrors industry-standard GitFlow validation practices
+
+**Git Flow:**
+```
+feature/* → develop (preview deploy) → main (production deploy)
+```
+
+**Decision Confidence:** HIGH
+
+---
+
+## DEC-014 — VITE_ Prefix Required for Client-Side Environment Variables
+
+**Date:** 2026-05-16
+**Status:** APPROVED — OPERATIONAL POLICY
+
+**Decision:** All environment variables that need to be accessible in the React browser bundle must use the `VITE_` prefix. Variables without this prefix are server-side only.
+
+**Context:** Initial deployment revealed that Supabase credentials were not available in the browser despite being set in Vercel's environment variable dashboard. The `VITE_` prefix was missing.
+
+**Rationale:**
+- Vite's security model explicitly requires `VITE_` prefix to prevent accidental exposure of server secrets to the client bundle
+- Variables are compiled into the static bundle at build time — they are NOT runtime-injectable
+- Any change to `VITE_*` variables in Vercel requires a new deployment to take effect
+
+**Operational Rule:**
+- Client-accessible variables → `VITE_VARIABLE_NAME` (in `.env.local` and Vercel dashboard)
+- Server-only variables (future Vercel Functions) → `VARIABLE_NAME` (no prefix, not exposed to browser)
+
+**Decision Confidence:** HIGH

@@ -143,3 +143,106 @@ Technical research, comparisons, and findings from Phase 0B discovery.
 | Jotai | Atomic state | ~3KB | Good but less proven for WS patterns |
 | SWR | Server state | ~7KB | Less feature-rich than TanStack Query |
 | React Context | Simple state | 0KB | Performance issues with frequent WS updates |
+
+---
+
+## Vercel Deployment Learnings (Session 002)
+
+### Lesson 1 — Root Directory Must Match vercel.json Location
+
+**Finding:** Vercel's "Root Directory" project setting (in Vercel dashboard) is authoritative. The `vercel.json` file must live INSIDE the configured root directory, not at the repo root.
+
+**Pattern:**
+```
+Vercel Root Directory: frontend/
+vercel.json location:  frontend/vercel.json   ← CORRECT
+                       vercel.json            ← WRONG (ignored by Vercel)
+```
+
+**Why It Matters:** Placing `vercel.json` at the repo root while the root directory is `frontend/` causes Vercel to use the dashboard settings but ignore the `vercel.json` file, leading to inconsistent behavior.
+
+---
+
+### Lesson 2 — Never Prefix Build Commands with Root Directory Navigation
+
+**Finding:** When Vercel's root directory is configured, all build commands run FROM that directory. Adding `cd frontend &&` to build commands creates a double-navigation error.
+
+**Anti-pattern:**
+```json
+{ "buildCommand": "cd frontend && npm run build" }
+```
+
+**Correct pattern (when root = frontend/):**
+```json
+{ "buildCommand": "npm run build" }
+```
+
+---
+
+### Lesson 3 — SPAs Require Catch-All Rewrite Rules
+
+**Finding:** Vercel serves static files. Any URL that doesn't map to a physical file returns 404. React Router handles routing client-side, so ALL paths must serve `index.html`.
+
+**Required vercel.json config for any React SPA:**
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+**Symptoms without this rule:** Direct URL navigation works locally (Vite dev server handles it), but returns 404 in production for any path other than `/`.
+
+---
+
+### Lesson 4 — Vite Environment Variables Are Build-Time, Not Runtime
+
+**Finding:** Variables prefixed with `VITE_` are injected into the static bundle during `npm run build`. They are NOT available at runtime from a server — they are compiled into the JavaScript bundle.
+
+**Implications:**
+1. Changing a `VITE_*` env var in Vercel dashboard requires a full rebuild + redeployment
+2. `VITE_*` variables are visible in the browser (bundle inspection) — never put secrets here
+3. Variables without `VITE_` prefix are NOT accessible in browser code at all
+4. Server-side secrets (future Vercel Functions) should NOT use `VITE_` prefix
+
+**Correct usage:**
+```
+VITE_SUPABASE_URL       → browser-accessible, safe (public URL)
+VITE_SUPABASE_ANON_KEY  → browser-accessible, safe (Supabase anon key is designed to be public)
+SUPABASE_SERVICE_KEY    → server-only (future Vercel Functions), never VITE_ prefixed
+```
+
+---
+
+### Lesson 5 — Preview vs Production Deployment Separation
+
+**Finding:** Vercel creates two deployment tracks:
+- **Preview:** Auto-triggered on every push to any non-production branch. Gets a unique URL per deployment.
+- **Production:** Triggered only on push to the production branch (configurable — typically `main`).
+
+**Operational Pattern:**
+- All feature development validated on Preview URLs (deploy from `develop` branch)
+- Production URL is only promoted after Preview validation passes
+- Both tracks use the same Vercel environment variables (can configure per-environment variables for different `VITE_API_*` values between Preview and Production)
+
+---
+
+### Lesson 6 — Monorepo Deployment Considerations
+
+**Finding:** For a monorepo with `/frontend` + `/api` + `/docs`, Vercel requires an explicit root directory setting to know where the deployable application lives.
+
+**Two viable patterns:**
+```
+Pattern A (current) — Frontend-first:
+  Vercel Root: frontend/
+  Frontend: deployed ✅
+  API functions: frontend/api/ (future)
+  Complexity: LOW
+
+Pattern B — Repo root:
+  Vercel Root: /
+  vercel.json at root configures build/output
+  API functions: /api/
+  Complexity: MEDIUM (requires explicit outputDirectory config)
+```
+
+Pattern A is currently in use and is simpler for the MVP phase. Pattern B would be needed if the monorepo grows to include multiple deployable units (e.g., separate backend deployment).
