@@ -2,7 +2,11 @@
 
 Follow the operational framework defined in:
 
-/system/master_project_framework.md
+C:/AI-Workspace/Shared-System/frameworks/master_project_framework.md
+
+Shared-System acts as the centralized governance source of truth.
+
+Do not duplicate governance framework files into project repositories.
 
 Project-specific context exists in:
 

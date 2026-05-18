@@ -8,7 +8,11 @@ PRIMARY GOVERNANCE
 
 Primary operational framework:
 
-/system/master_project_framework.md
+C:/AI-Workspace/Shared-System/frameworks/master_project_framework.md
+
+Shared-System acts as the centralized governance source of truth.
+
+Do not duplicate governance framework files into project repositories.
 
 Project-specific strategic context:
 
