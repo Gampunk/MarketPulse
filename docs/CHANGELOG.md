@@ -1,6 +1,29 @@
 # CHANGELOG.md
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-18
+
+---
+
+## [0.3.0] — 2026-05-18 — Phase 2: Live Price Engine
+
+### Added
+- `src/api/market/binance.ts` — `BinanceCryptoSource` implementing `MarketDataSource` interface
+  - Combined miniTicker WebSocket stream (`wss://stream.binance.com:9443/stream`)
+  - Single connection per app instance, dynamic SUBSCRIBE/UNSUBSCRIBE for symbol changes
+  - Exponential backoff reconnection (1s initial → 30s max)
+  - Writes full `PriceChange` (price, 24h change, volume, high, low) into `PricesStore`
+- `src/lib/formatters.ts` — `formatPrice`, `formatVolume`, `formatChange`, `formatChangeAbs`
+- `src/hooks/usePriceStream.ts` — app-level hook managing WS subscriptions for all watchlist symbols
+- `src/components/watchlist/AddSymbolSearch.tsx` — inline coin search, fetches USDT pairs from Binance exchangeInfo, TanStack Query cached (1h stale)
+
+### Updated
+- `src/App.tsx` — added `usePriceStream()` call for app-lifetime WebSocket management
+- `src/components/layout/Sidebar.tsx` — live price + 24h change % per watchlist row; hover-to-remove X button
+- `src/pages/DashboardPage.tsx` — stat cards (Price, Change 24h, Volume 24h, High/Low) showing live data for active symbol; large price + change display in header
+
+### Validated
+- `npm run build` — 0 TypeScript errors, 1.15s, 308KB JS bundle
+- Phase 2 completion conditions: all 7 met
 
 ---
 

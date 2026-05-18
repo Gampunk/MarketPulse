@@ -1,10 +1,54 @@
 # SESSION_CONTEXT.md
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-18
 
 ---
 
-## Session 002 — 2026-05-16 — Infrastructure Stabilization
+## Session 003 — 2026-05-18 — Phase 2: Live Price Engine
+
+### What Happened
+
+Phase 2 implementation completed in full. Governance migration (Shared-System centralization) was validated at session start before any code was written. All Phase 2 completion conditions met.
+
+### Implementation Delivered
+
+**New files:**
+- `frontend/src/api/market/binance.ts` — `BinanceCryptoSource` class (implements `MarketDataSource`)
+- `frontend/src/lib/formatters.ts` — price, volume, change formatters
+- `frontend/src/hooks/usePriceStream.ts` — app-level WebSocket lifecycle hook
+- `frontend/src/components/watchlist/AddSymbolSearch.tsx` — inline coin search component
+
+**Modified files:**
+- `frontend/src/App.tsx` — added `usePriceStream()` call
+- `frontend/src/components/layout/Sidebar.tsx` — live prices, remove button
+- `frontend/src/pages/DashboardPage.tsx` — live stat cards
+
+### Architecture Notes
+
+**WebSocket strategy:** Single `BinanceCryptoSource` singleton. Uses Binance combined stream URL for initial connection (all symbols at once), then dynamic SUBSCRIBE/UNSUBSCRIBE messages for runtime changes. Exponential backoff reconnection (1s → 2s → 4s → ... → 30s max).
+
+**Data flow:** Binance WSS → `handleTick()` in BinanceCryptoSource → `usePricesStore.setPrice()` → Sidebar/DashboardPage re-render via Zustand subscription.
+
+**Coin search:** TanStack Query fetches `/api/v3/exchangeInfo` (SPOT permissions) once when search opens, cached 1 hour. Filters USDT TRADING pairs client-side.
+
+**Remove watchlist:** Unsubscribes from price stream immediately. If no remaining subscribers, closes WebSocket cleanly.
+
+**MarketDataSource interface:** Preserved intact. BinanceCryptoSource is a drop-in implementation. Forex source can be swapped in Phase 6 without UI changes.
+
+### Build State After Session 003
+
+- `npm run build` → 0 errors, 1.15s, 308KB JS gzipped 97KB
+- Branch: `feature/live-price-engine` (clean, unpushed)
+
+### What To Do Next Session
+
+1. Push `feature/live-price-engine` → PR to `develop` → merge
+2. Merge `develop` → `main` (first live-price-enabled production release)
+3. Begin Phase 3 planning: TradingView Lightweight Charts, OHLCV pipeline, Vercel Function setup
+
+---
+
+## Session 002 — 2026-05-16 — Infrastructure Stabilization — 2026-05-16 — Infrastructure Stabilization
 
 ### What Happened
 

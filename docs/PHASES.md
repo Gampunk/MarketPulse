@@ -1,6 +1,6 @@
 # PHASES.md
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-18
 
 ---
 
@@ -58,8 +58,8 @@
 
 ## Phase 2 — Live Price Engine
 
-**Status:** ACTIVE — NEXT
-**Depends On:** Phase 1 ✅
+**Status:** COMPLETE
+**Completed:** 2026-05-18
 
 ### Objectives
 - Implement Binance WebSocket connection manager (MarketDataSource)
@@ -69,13 +69,13 @@
 - 24h price change % display
 
 ### Completion Conditions
-- [ ] BinanceCryptoSource implements MarketDataSource interface
-- [ ] Binance WebSocket connects and streams live prices into PricesStore
-- [ ] Sidebar shows live price + 24h change for each watchlist item
-- [ ] Dashboard stat cards show live data for active symbol
-- [ ] User can search coins and add to watchlist
-- [ ] User can remove coins from watchlist
-- [ ] WebSocket reconnects on disconnect
+- [x] BinanceCryptoSource implements MarketDataSource interface
+- [x] Binance WebSocket connects and streams live prices into PricesStore
+- [x] Sidebar shows live price + 24h change for each watchlist item
+- [x] Dashboard stat cards show live data for active symbol
+- [x] User can search coins and add to watchlist
+- [x] User can remove coins from watchlist
+- [x] WebSocket reconnects on disconnect
 
 ---
 
