@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-18
 **Current Phase:** Phase 2 — Live Price Engine
 
 ---
@@ -40,27 +40,12 @@
 
 ---
 
-## Pending User Actions (before or during Phase 2)
-
-### UA-001 — Create GitHub Repository
-- Create repo at github.com
-- Add remote: `git remote add origin <repo-url>`
-- Push: `git push -u origin main`
-
-### UA-002 — Create Supabase Project
-- Go to supabase.com and create a free project
-- Copy URL + anon key
-- Create `.env.local` with these values (see `.env.example`)
-
-### UA-003 — Install Vercel CLI and Link Project
-- `npm i -g vercel`
-- `vercel login`
-- `vercel link` (from project root)
-- Add Supabase env vars to Vercel dashboard
-
----
-
 ## Completed Tasks
+
+### Phase 1.5 — Infrastructure Stabilization — COMPLETE (2026-05-16)
+- [x] UA-001: GitHub repository created and connected (`github.com/Gampunk/MarketPulse`) — `main` + `develop` branches established
+- [x] UA-002: Supabase project created — URL + anon key configured in `.env.local` and Vercel dashboard
+- [x] UA-003: Vercel project linked — production + preview deployments operational; Supabase env vars added to Vercel dashboard
 
 ### Phase 1 — COMPLETE (2026-05-16)
 - [x] P1-001: Git repository initialized (`main` branch, `.gitignore`)
