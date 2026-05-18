@@ -16,58 +16,54 @@
 
 ### 3C-A — `useChartEngine` Hook + Series Registry + `PriceChart` Refactor
 
-- [ ] P3C-A01: Create `frontend/src/types/chart.ts` — `ChartType`, `SeriesKey`, `PriceChartContext`
-- [ ] P3C-A02: Create `frontend/src/hooks/useChartEngine.ts` — chart lifecycle + series registry
+- [x] P3C-A01: Create `frontend/src/types/chart.ts` — `ChartType`, `SeriesKey`, `PriceChartContext`
+- [x] P3C-A02: Create `frontend/src/hooks/useChartEngine.ts` — chart lifecycle + series registry
   - `addSeries(key, definition, options)` — replaces existing, cleans up old
   - `removeSeries(key)` — safe remove with existence guard
   - `getSeries(key)` — typed lookup
   - `clearAllSeries()` — full teardown on context reset
   - Returns: `{ chartRef, addSeries, removeSeries, getSeries, clearAllSeries, isReady }`
-- [ ] P3C-A03: Create `frontend/src/components/charts/PriceChart.tsx`
+- [x] P3C-A03: Create `frontend/src/components/charts/PriceChart.tsx`
   - Props: `{ symbol, interval, chartType }`
   - `contextRef` upgraded to track `{ symbol, interval, chartType }`
   - Uses `useChartEngine` for all series operations
   - Price series (`'price'`): candlestick or line based on `chartType` prop
   - Series swap on `chartType` change — no chart recreation
   - `historyReadyRef.current = false` on any context dimension change
-- [ ] P3C-A04: Delete `frontend/src/components/charts/CandlestickChart.tsx`
-- [ ] P3C-A05: Update `DashboardPage.tsx` — import `PriceChart`, add `chartType` state
-- [ ] P3C-A06: `npm run build` → 0 TypeScript errors
+- [x] P3C-A04: Delete `frontend/src/components/charts/CandlestickChart.tsx`
+- [x] P3C-A05: Update `DashboardPage.tsx` — import `PriceChart`, add `chartType` state
+- [x] P3C-A06: `npm run build` → 0 TypeScript errors (994ms, 155KB gzipped)
 
 ### 3C-B — Volume Histogram
 
-- [ ] P3C-B01: Add `'volume'` `HistogramSeries` to `PriceChart` via `useChartEngine`
+- [x] P3C-B01: Add `'volume'` `HistogramSeries` to `PriceChart` via `useChartEngine`
   - `priceScaleId: 'volume'` — isolated scale, no price axis interference
   - Scale margins: `{ top: 0.75, bottom: 0 }` — volume in bottom 25% of main pane
   - Directional coloring: `c.close >= c.open ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'`
-- [ ] P3C-B02: Volume series data lifecycle — same `historyReadyRef` gate as price series
+- [x] P3C-B02: Volume series data lifecycle — same `historyReadyRef` gate as price series
   - `setData()` on context change / history load
   - `update()` on live tick (alongside price `update()`)
-- [ ] P3C-B03: Volume series cleanup — `clearAllSeries()` on unmount covers this automatically
+- [x] P3C-B03: Volume series cleanup — `clearAllSeries()` on unmount covers this automatically
 
 ### 3C-C — Chart Type Toggle
 
-- [ ] P3C-C01: Create `frontend/src/components/charts/ChartTypeSelector.tsx`
+- [x] P3C-C01: Create `frontend/src/components/charts/ChartTypeSelector.tsx`
   - Props: `{ type: ChartType, onChange: (type: ChartType) => void }`
   - Buttons: Candles | Line — same styling pattern as `TimeframeSelector`
-- [ ] P3C-C02: Wire `ChartTypeSelector` into `DashboardPage` header
-- [ ] P3C-C03: Verify series swap on chart type change — no chart recreation, volume persists
+- [x] P3C-C02: Wire `ChartTypeSelector` into `DashboardPage` header
+- [ ] P3C-C03: Verify series swap on chart type change — no chart recreation, volume persists — **runtime verify**
 
 ### 3C-D — Indicator/Overlay Architecture Documentation
 
-- [ ] P3C-D01: Update `ARCHITECTURE.md` — chart engine section
-  - `useChartEngine` API contract
-  - Pane convention: Pane 0 (price + overlays + volume), Pane 1 (oscillators), Pane 2+ (secondary)
-  - `priceScaleId` convention for overlay vs. independent scales
-  - Indicator hook contract: `useXxxIndicator(engine, candles, options) => void`
-- [ ] P3C-D02: Update `DECISIONS.md` — DEC-018 (chart engine architecture decision)
+- [x] P3C-D01: Update `ARCHITECTURE.md` — chart engine section (done in Session 006)
+- [x] P3C-D02: Update `DECISIONS.md` — DEC-018 added (done in Session 006)
 
 ### 3C-E — Render Performance Verification
 
-- [ ] P3C-E01: Audit live tick path — confirm exactly 2 `series.update()` calls per kline event (price + volume), no excess re-renders
-- [ ] P3C-E02: Audit `setData()` — confirm never called during live-update mode
-- [ ] P3C-E03: Refine price scale reset condition — `applyOptions({ autoScale: true })` only on symbol change, not interval or chart type change
-- [ ] P3C-E04: Confirm RAF `fitContent()` still correct after multi-series refactor
+- [x] P3C-E01: Live tick path — exactly 2 `series.update()` calls per kline (code verified)
+- [x] P3C-E02: `setData()` strictly in `!historyReadyRef` branch — never in live-update mode (code verified)
+- [x] P3C-E03: Price scale reset scoped to `isSymbolChange` only — not interval or chartType change (code verified)
+- [x] P3C-E04: RAF `fitContent()` correct after multi-series refactor (code verified — same pattern)
 
 ### 3C-F — Phase 3C Close-Out
 

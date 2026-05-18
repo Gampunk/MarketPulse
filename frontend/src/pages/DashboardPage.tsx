@@ -1,16 +1,19 @@
 import { useState } from 'react'
 import { useWatchlistStore } from '@/stores/watchlist'
 import { useMarketStore } from '@/stores/market'
-import { CandlestickChart } from '@/components/charts/CandlestickChart'
+import { PriceChart } from '@/components/charts/PriceChart'
 import { TimeframeSelector } from '@/components/charts/TimeframeSelector'
+import { ChartTypeSelector } from '@/components/charts/ChartTypeSelector'
 import { formatPrice, formatVolume, formatChange } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Interval } from '@/types/market'
+import type { ChartType } from '@/types/chart'
 
 export function DashboardPage() {
   const activeSymbol = useWatchlistStore(s => s.activeSymbol)
   const price = useMarketStore(s => s.tickers[activeSymbol])
   const [interval, setSelectedInterval] = useState<Interval>('1m')
+  const [chartType, setChartType] = useState<ChartType>('candlestick')
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -24,6 +27,7 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-6">
+          <ChartTypeSelector type={chartType} onChange={setChartType} />
           <TimeframeSelector selected={interval} onChange={setSelectedInterval} />
           {price && (
             <div className="text-right">
@@ -46,7 +50,7 @@ export function DashboardPage() {
       </div>
 
       <div className="flex-1 rounded-lg border border-[var(--color-border)] overflow-hidden min-h-0">
-        <CandlestickChart symbol={activeSymbol} interval={interval} />
+        <PriceChart symbol={activeSymbol} interval={interval} chartType={chartType} />
       </div>
 
       <div className="grid grid-cols-4 gap-3">
