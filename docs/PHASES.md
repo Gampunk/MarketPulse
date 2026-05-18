@@ -1,6 +1,7 @@
 # PHASES.md
 
 **Last Updated:** 2026-05-18
+**Active Sub-phase:** Phase 3A — complete pending verification
 
 ---
 
@@ -81,22 +82,72 @@
 
 ## Phase 3 — Charting
 
-**Status:** PENDING
+**Status:** IN PROGRESS (Phase 3A complete, 3B pending)
 **Depends On:** Phase 2
 
-### Objectives
-- Integrate TradingView Lightweight Charts
-- OHLCV data pipeline (Binance REST → Vercel Function → Supabase cache)
-- Candlestick chart + Line chart with toggle
-- Time range selector (15m, 1h, 4h, 1D, 1W, 1M)
-- Chart updates on watchlist symbol click
+### Sub-phases
 
-### Completion Conditions
-- [ ] Candlestick chart renders for active symbol
-- [ ] Line chart toggle works
-- [ ] OHLCV data cached in Supabase (reduces API calls on repeat visits)
-- [ ] Time range selector functional
-- [ ] Clicking watchlist item updates chart symbol
+#### Phase 3A — Centralized Market State Infrastructure
+**Status:** COMPLETE (pending human verification + commit)
+**Completed:** 2026-05-18
+
+**Objectives:**
+- Centralized Zustand market store (`useMarketStore`) replacing `usePricesStore`
+- MarketDataSource interface expansion (`subscribeToKlines`)
+- BinanceCryptoSource evolved: handles ticker + kline streams on one connection
+- Standalone REST fetcher layer (`api/rest/binance.ts`)
+- `useKlineData` hook: historical fetch (TanStack Query) + live stream subscription
+- Candle merge engine in market store (`updateKlineCandle`, 500-candle rolling window)
+- Component migration from `usePricesStore` → `useMarketStore`
+- Delete deprecated `stores/prices.ts`
+
+**Completion Conditions:**
+- [x] `useMarketStore` has tickers, klines, symbols, connection slices
+- [x] `BinanceCryptoSource.subscribeToKlines()` implemented
+- [x] `updateKlineCandle` merge logic: live replace, closed append, discard stale
+- [x] `useKlineData` hook deposits history + subscribes live kline stream
+- [x] `DashboardPage` shows "1m candles loaded: N" (Phase 3A verification)
+- [x] `usePricesStore` deleted — zero remaining imports
+- [x] `npm run build` → 0 TypeScript errors
+- [ ] Human runtime verification (browser checklist)
+- [ ] Phase 3A commit pushed
+
+#### Phase 3B — Chart Component (TradingView)
+**Status:** PENDING (begins after Phase 3A verification)
+
+**Objectives:**
+- Integrate TradingView Lightweight Charts v5
+- Candlestick chart consuming `useMarketStore` klines slice
+- Chart updates when active symbol changes in watchlist
+- Chart updates live as new candles arrive via WebSocket
+
+**Completion Conditions:**
+- [ ] `CandlestickChart` component renders OHLCV data for active symbol
+- [ ] Chart updates in real-time as kline stream fires
+- [ ] Switching watchlist symbol updates chart
+- [ ] No duplicate WebSocket connections introduced
+- [ ] Zero TypeScript errors
+
+#### Phase 3C — Timeframe Selector
+**Status:** PENDING (begins after Phase 3B verification)
+
+**Objectives:**
+- Timeframe selector UI (1m, 5m, 15m, 1h, 4h, 1D)
+- `useKlineData` receives selected interval from UI
+- Store holds klines per symbol per interval
+- Chart re-fetches history when interval changes
+
+**Completion Conditions:**
+- [ ] Timeframe selector renders (1m, 5m, 15m, 1h, 4h, 1D)
+- [ ] Selecting interval triggers REST fetch for new interval's history
+- [ ] Live kline stream switches to new interval
+- [ ] Chart re-renders with correct timeframe data
+- [ ] No regression in ticker streams or existing intervals
+
+### Architecture Decision (Phase 3)
+- **OHLCV source:** Browser-direct Binance REST (no Vercel Function proxy) — deferred to Phase 4 (DEC-017)
+- **Stream manager:** Evolved `BinanceCryptoSource` (not a new class) — DEC-016
+- **Execution order:** 3A → 3B → 3C. Each sub-phase verified before the next begins — MANDATORY
 
 ---
 

@@ -4,6 +4,95 @@
 
 ---
 
+## Session 004 — 2026-05-18 — Phase 3A: Centralized Market State Infrastructure
+
+### What Happened
+
+Phase 3A architecture was approved and implemented in full. Context window was exhausted during documentation updates; work was resumed in a new session from the compacted summary.
+
+WebSocket singleton refactor (completed during this session prior to Phase 3A):
+- Fixed "WebSocket is closed before connection is established" and "Ping received after close" errors
+- Implemented stale handler guard (`if (this.ws !== ws) return`) on all socket event handlers
+- `ensureConnected()` now correctly handles all readyStates including CLOSING (2)
+- `usePriceStream` migrated to delta subscription (useRef map — only subscribes/unsubscribes the diff)
+
+Phase 3A implementation:
+
+### Implementation Delivered
+
+**New files:**
+- `frontend/src/stores/market.ts` — `useMarketStore` (Zustand v5, devtools). Slices: tickers, klines, symbols, connection. `updateKlineCandle` merge engine with 500-candle rolling window.
+- `frontend/src/api/rest/binance.ts` — standalone `fetchKlines` + `fetchExchangeInfo` REST fetchers
+- `frontend/src/hooks/useKlineData.ts` — historical fetch (TanStack Query, 5min stale) + live stream subscription; deposits into market store
+
+**Modified files:**
+- `frontend/src/types/market.ts` — added `ConnectionStatus` type; added `subscribeToKlines` to `MarketDataSource` interface
+- `frontend/src/api/market/binance.ts` — full rewrite: kline stream support (`klineSubs` nested map), `handleKline()`, `resubscribeAll()`, `hasActiveSubscriptions()`, connection status writes to `useMarketStore`, stale handler guard on all handlers; REST methods delegate to `api/rest/binance.ts`
+- `frontend/src/components/layout/Sidebar.tsx` — `usePricesStore` → `useMarketStore`, `s.prices[symbol]` → `s.tickers[symbol]`
+- `frontend/src/pages/DashboardPage.tsx` — `usePricesStore` → `useMarketStore`, added `useKlineData(activeSymbol, '1m')`, added kline count display in chart placeholder
+
+**Deleted files:**
+- `frontend/src/stores/prices.ts` — fully removed; zero remaining imports verified
+
+### Architecture Notes
+
+**Stream→Store architecture:** BinanceCryptoSource singleton is the sole owner of the WebSocket. It writes directly to `useMarketStore` (via `getState()`) — no React intermediaries. Components only read from the store via selectors. UI never owns market infrastructure.
+
+**Candle merge engine:** `updateKlineCandle(symbol, interval, candle, isClosed)`:
+- `candle.time === last.time` → replace last (live open candle updating)
+- `candle.time > last.time` → append (new closed candle)
+- `candle.time < last.time` → discard (late/out-of-order frame)
+- Rolling 500-candle window enforced on every write
+
+**klineSubs structure:** `Map<symbol, Map<interval, Set<callback>>>` — mirrors the nested Binance stream routing
+
+**REST layer:** `api/rest/binance.ts` is standalone and framework-agnostic. `BinanceCryptoSource.fetchOHLCV` delegates to it. TanStack Query in `useKlineData` also calls it directly.
+
+**Phase 3A verification stub:** DashboardPage chart placeholder shows "1m candles loaded: N" — confirms history deposit and live merge are working without requiring a chart component.
+
+### Build State After Session 004
+
+- `npm run build` → 0 TypeScript errors, 664ms
+- Branch: `feature/live-price-engine` (Phase 3A code complete, uncommitted)
+
+### Pending Before Next Session
+
+1. Human runs Phase 3A verification checklist (see below)
+2. Commit Phase 3A (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
+3. Push `feature/live-price-engine` → open PR to `develop`
+4. Begin Phase 3B (TradingView chart component)
+
+### Phase 3A Runtime Verification Checklist
+
+Run `npm run dev` at `localhost:5173` and check:
+
+**WebSocket:**
+- [ ] Console shows `[Binance WS] Connecting to wss://stream.binance.com:9443/stream` (once)
+- [ ] Console shows `[Binance WS] Connected`
+- [ ] Network → WS tab shows exactly one WebSocket connection
+- [ ] Ticker prices still updating in sidebar (green/red live)
+
+**Historical kline fetch:**
+- [ ] Console shows `[KlineData] Fetching historical BTCUSDT/1m (limit: 300)`
+- [ ] Console shows `[KlineData] Loaded 300 historical candles for BTCUSDT/1m`
+
+**Live kline stream:**
+- [ ] Console shows `[Binance WS] Subscribe kline: btcusdt@kline_1m`
+- [ ] Console shows `[Binance WS] Kline BTCUSDT/1m (live) close=...` updating every second
+
+**UI verification:**
+- [ ] Chart placeholder shows `1m candles loaded: 300` (or similar non-zero)
+- [ ] No "WebSocket is closed before connection is established" errors
+- [ ] No "Ping received after close" errors
+
+**Redux DevTools (if installed):**
+- [ ] MarketPulse store visible in devtools
+- [ ] `tickers` slice has live price data
+- [ ] `klines` slice has `BTCUSDT → 1m → [300 candles]`
+- [ ] `connection` slice shows `status: connected`
+
+---
+
 ## Session 003 — 2026-05-18 — Phase 2: Live Price Engine
 
 ### What Happened

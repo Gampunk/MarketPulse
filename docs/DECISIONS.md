@@ -1,6 +1,6 @@
 # DECISIONS.md
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-18
 
 Architecture decisions log. Changes to these decisions require tradeoff analysis and migration planning.
 
@@ -302,5 +302,80 @@ feature/* → develop (preview deploy) → main (production deploy)
 **Operational Rule:**
 - Client-accessible variables → `VITE_VARIABLE_NAME` (in `.env.local` and Vercel dashboard)
 - Server-only variables (future Vercel Functions) → `VARIABLE_NAME` (no prefix, not exposed to browser)
+
+**Decision Confidence:** HIGH
+
+---
+
+## DEC-015 — MarketDataSource Interface Expansion: subscribeToKlines
+
+**Date:** 2026-05-18
+**Status:** APPROVED — ACTIVE
+
+**Decision:** Expand the `MarketDataSource` interface to include `subscribeToKlines(symbol, interval, callback): () => void` as a first-class method.
+
+**Context:** Phase 3A requires live kline (candlestick) streams alongside ticker streams. The existing interface only covered `subscribeToPrice` and REST methods.
+
+**Alternatives Considered:**
+- Separate KlineDataSource interface: Creates unnecessary fragmentation — a single source handles both ticker and kline streams on the same WebSocket connection
+- Component-level WebSocket: Violates governance rule that UI components must never own market infrastructure
+
+**Rationale:**
+- A single connection naturally multiplexes ticker + kline streams — they belong in one interface
+- The interface abstraction is preserved; a Coinbase or Kraken source can implement the same contract
+- Avoids proliferating per-symbol WebSocket connections
+
+**Governance Rule:** UI components must never own market infrastructure. Components consume store slices only. All stream logic lives in BinanceCryptoSource.
+
+**Decision Confidence:** HIGH
+
+---
+
+## DEC-016 — Centralized Market Store: useMarketStore Replaces usePricesStore
+
+**Date:** 2026-05-18
+**Status:** APPROVED — ACTIVE
+
+**Decision:** Replace the lightweight `usePricesStore` with a centralized `useMarketStore` (Zustand v5) containing four slices: `tickers`, `klines`, `symbols`, and `connection`.
+
+**Context:** Phase 3A adds kline state and connection observability. `usePricesStore` only held ticker prices and was not extensible to klines without coupling concerns.
+
+**Alternatives Considered:**
+- Extend usePricesStore in-place: The slice structure becomes unclear and the store name misleads about its scope
+- Separate klineStore + pricesStore: Dual stores for the same WebSocket data source creates synchronization risk
+
+**Rationale:**
+- One store per data domain (market data = one domain)
+- `tickers`, `klines`, `symbols`, `connection` are all market-data concerns — cohesion is clean
+- Redux DevTools integration (dev-only) provides full timeline replay of all market state changes
+- `updateKlineCandle` merge engine lives in the store — components are never responsible for merge logic
+- Rolling 500-candle window enforced in the store, not in hooks or components
+
+**Migration:** `usePricesStore` deleted (`stores/prices.ts` removed). All references updated to `useMarketStore`.
+
+**Decision Confidence:** HIGH
+
+---
+
+## DEC-017 — OHLCV Source: Browser-Direct Binance REST (Supabase Caching Deferred to Phase 4)
+
+**Date:** 2026-05-18
+**Status:** APPROVED — ACTIVE
+
+**Decision:** Historical kline data (OHLCV) fetched directly from `https://api.binance.com/api/v3/klines` in the browser. Supabase caching via Vercel Functions is deferred to Phase 4.
+
+**Context:** Phase 3 originally planned a Vercel Function → Supabase cache layer for OHLCV. Architecture review concluded this adds infrastructure complexity with no user-facing benefit during MVP.
+
+**Alternatives Considered:**
+- Vercel Function proxy + Supabase cache: Reduces repeated Binance API calls but requires deploying backend functions, setting up DB schema, and managing cache invalidation — all before any chart renders
+- Server-side WebSocket relay: Not viable on Vercel serverless (no persistent connections)
+
+**Rationale:**
+- Binance REST is public, no API key required, rate limits are generous at MVP traffic
+- TanStack Query provides client-side caching (5min stale time) — most repeat fetches are free
+- Deploying backend infra before the chart even renders inverts the build order (infrastructure before feature)
+- The REST layer (`api/rest/binance.ts`) is already abstracted — Vercel Function proxy can be dropped in as a swap in Phase 4 without touching hooks or components
+
+**Accepted Risk:** Rate limiting if many users repeatedly switch timeframes rapidly. Acceptable at MVP scale.
 
 **Decision Confidence:** HIGH

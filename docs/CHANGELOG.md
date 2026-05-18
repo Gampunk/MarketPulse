@@ -4,6 +4,54 @@
 
 ---
 
+## [0.4.0] — 2026-05-18 — Phase 3A: Centralized Market State Infrastructure
+
+### Added
+- `src/stores/market.ts` — `useMarketStore` (Zustand v5 + Redux DevTools, dev-only)
+  - `tickers` slice: full TickData per symbol (replaces usePricesStore)
+  - `klines` slice: Candle[] per symbol per interval, 500-candle rolling window
+  - `symbols` slice: MarketSymbol lookup map (for coin search)
+  - `connection` slice: status (connecting/connected/disconnected), reconnect count, lastConnectedAt
+  - `updateKlineCandle` merge engine: live replace / closed append / stale discard
+- `src/api/rest/binance.ts` — standalone REST fetchers
+  - `fetchKlines(symbol, interval, limit)` → `Candle[]`
+  - `fetchExchangeInfo()` → `MarketSymbol[]` (USDT SPOT pairs)
+- `src/hooks/useKlineData.ts` — combines TanStack Query historical fetch + live stream subscription
+  - Deposits history into `useMarketStore.setKlineHistory` on first load
+  - Subscribes to `BinanceCryptoSource.subscribeToKlines` for live updates
+  - TanStack Query cache: 5min stale time, no window-focus refetch
+
+### Updated
+- `src/types/market.ts`
+  - Added `ConnectionStatus = 'connecting' | 'connected' | 'disconnected'`
+  - Added `subscribeToKlines(symbol, interval, callback): () => void` to `MarketDataSource`
+- `src/api/market/binance.ts` — full evolution of BinanceCryptoSource
+  - Added `klineSubs: Map<string, Map<Interval, Set<callback>>>` for kline stream routing
+  - Added `handleKline()` — parses kline event, writes to `useMarketStore.updateKlineCandle`
+  - Added `subscribeToKlines()` — mirrors subscribeToPrice pattern with nested map
+  - Added `resubscribeAll()` — sends all active ticker + kline streams on reconnect
+  - Updated `hasActiveSubscriptions()` — checks both tickerSubs and klineSubs
+  - Added stale handler guard (`if (this.ws !== ws) return`) on all socket handlers
+  - REST methods (`fetchOHLCV`, `getSupportedSymbols`) delegate to `api/rest/binance.ts`
+  - Connection state writes: `setConnectionStatus` + `onReconnect` wired to `useMarketStore`
+- `src/hooks/usePriceStream.ts` — delta subscription pattern (useRef Map, only diffs subscribe/unsubscribe)
+- `src/components/layout/Sidebar.tsx` — migrated to `useMarketStore.tickers`
+- `src/pages/DashboardPage.tsx` — migrated to `useMarketStore.tickers`; added `useKlineData` + kline count display
+
+### Deleted
+- `src/stores/prices.ts` — fully removed; all references migrated to `useMarketStore`
+
+### Fixed
+- WebSocket lifecycle: stale handler guard prevents superseded socket's `onclose`/`onopen` from firing
+- `ensureConnected()` checks `OPEN || CONNECTING`, correctly handles `CLOSING (2)` state
+- Delta subscription in `usePriceStream` prevents full teardown/rebuild on every watchlist change
+
+### Validated
+- `npm run build` — 0 TypeScript errors, 664ms build
+- Phase 3A architecture: Stream→Store ownership correct, no component-level market infrastructure
+
+---
+
 ## [0.3.0] — 2026-05-18 — Phase 2: Live Price Engine
 
 ### Added

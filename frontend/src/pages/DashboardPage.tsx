@@ -1,11 +1,16 @@
 import { useWatchlistStore } from '@/stores/watchlist'
-import { usePricesStore } from '@/stores/prices'
+import { useMarketStore } from '@/stores/market'
+import { useKlineData } from '@/hooks/useKlineData'
 import { formatPrice, formatVolume, formatChange } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
 export function DashboardPage() {
   const activeSymbol = useWatchlistStore(s => s.activeSymbol)
-  const price = usePricesStore(s => s.prices[activeSymbol])
+  const price = useMarketStore(s => s.tickers[activeSymbol])
+  const klineCount = useMarketStore(s => s.klines[activeSymbol]?.['1m']?.length ?? 0)
+
+  // Phase 3A: activate kline infrastructure for the active symbol (replaced by chart in 3B)
+  useKlineData(activeSymbol, '1m')
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -35,9 +40,10 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] flex items-center justify-center">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Chart component — Phase 3
+      <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col items-center justify-center gap-2">
+        <p className="text-sm text-[var(--color-text-muted)]">Chart component — Phase 3B</p>
+        <p className="text-xs font-mono text-[var(--color-text-muted)]">
+          1m candles loaded: {klineCount}
         </p>
       </div>
 

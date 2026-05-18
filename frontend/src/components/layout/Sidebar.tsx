@@ -1,6 +1,6 @@
 import { TrendingUp, X } from 'lucide-react'
 import { useWatchlistStore } from '@/stores/watchlist'
-import { usePricesStore } from '@/stores/prices'
+import { useMarketStore } from '@/stores/market'
 import { AddSymbolSearch } from '@/components/watchlist/AddSymbolSearch'
 import { formatPrice, formatChange } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -43,7 +43,7 @@ interface WatchlistRowProps {
 }
 
 function WatchlistRow({ symbol, isActive, onSelect, onRemove }: WatchlistRowProps) {
-  const price = usePricesStore(s => s.prices[symbol])
+  const price = useMarketStore(s => s.tickers[symbol])
 
   return (
     <div className="group relative">

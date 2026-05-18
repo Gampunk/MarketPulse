@@ -38,8 +38,23 @@ export interface WatchlistItem {
   addedAt: number
 }
 
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
+
 export interface MarketDataSource {
+  // Tick-level price subscription — fires on every miniTicker update
   subscribeToPrice(symbol: string, callback: (data: TickData) => void): () => void
+
+  // Live OHLCV candle stream — fires on every kline update for the given interval
+  // Added in Phase 3 to support charting and future analytics consumers
+  subscribeToKlines(
+    symbol: string,
+    interval: Interval,
+    callback: (candle: Candle, isClosed: boolean) => void
+  ): () => void
+
+  // Historical OHLCV data via REST
   fetchOHLCV(symbol: string, interval: Interval, limit: number): Promise<Candle[]>
+
+  // Full symbol list for the exchange
   getSupportedSymbols(): Promise<MarketSymbol[]>
 }
