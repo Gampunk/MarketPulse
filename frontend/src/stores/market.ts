@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { PriceChange, Candle, Interval, MarketSymbol, ConnectionStatus } from '@/types/market'
 
+// Stable empty reference — safe to return from getKlines when no data exists.
+// A literal [] would create a new reference on every call, breaking Zustand reactive selectors.
+const EMPTY_CANDLES: Candle[] = []
+
 // --- Slice types ---
 
 interface ConnectionState {
@@ -95,7 +99,7 @@ export const useMarketStore = create<MarketStore>()(
           'klines/updateCandle'
         ),
 
-      getKlines: (symbol, interval) => get().klines[symbol]?.[interval] ?? [],
+      getKlines: (symbol, interval) => get().klines[symbol]?.[interval] ?? EMPTY_CANDLES,
 
       // ── Symbol metadata ───────────────────────────────────────────────────
       symbols: {},

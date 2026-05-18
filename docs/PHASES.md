@@ -1,7 +1,7 @@
 # PHASES.md
 
 **Last Updated:** 2026-05-18
-**Active Sub-phase:** Phase 3A — complete pending verification
+**Active Sub-phase:** Phase 3B — Chart Component (IN PROGRESS)
 
 ---
 
@@ -82,13 +82,13 @@
 
 ## Phase 3 — Charting
 
-**Status:** IN PROGRESS (Phase 3A complete, 3B pending)
+**Status:** IN PROGRESS (Phase 3A complete, 3B complete pending commit, 3C defined)
 **Depends On:** Phase 2
 
 ### Sub-phases
 
 #### Phase 3A — Centralized Market State Infrastructure
-**Status:** COMPLETE (pending human verification + commit)
+**Status:** COMPLETE — committed (`aa94f7a`), branch pushed
 **Completed:** 2026-05-18
 
 **Objectives:**
@@ -109,44 +109,96 @@
 - [x] `DashboardPage` shows "1m candles loaded: N" (Phase 3A verification)
 - [x] `usePricesStore` deleted — zero remaining imports
 - [x] `npm run build` → 0 TypeScript errors
-- [ ] Human runtime verification (browser checklist)
-- [ ] Phase 3A commit pushed
+- [x] Human runtime verification (browser checklist)
+- [x] Phase 3A commit pushed (`aa94f7a`)
 
-#### Phase 3B — Chart Component (TradingView)
-**Status:** PENDING (begins after Phase 3A verification)
+#### Phase 3B — Chart Component + Timeframe Selector (TradingView)
+**Status:** COMPLETE — runtime verified, pending commit + PR
+**Completed:** 2026-05-18
 
 **Objectives:**
 - Integrate TradingView Lightweight Charts v5
-- Candlestick chart consuming `useMarketStore` klines slice
-- Chart updates when active symbol changes in watchlist
-- Chart updates live as new candles arrive via WebSocket
+- `CandlestickChart` — reusable, consumes `useMarketStore` klines slice via `useKlineData`
+- Live candlestick rendering — chart updates as kline stream fires
+- Symbol switching — chart resets and loads history for new symbol
+- Timeframe switching — `TimeframeSelector` UI (1m, 5m, 15m, 1h, 4h, 1D)
+- Responsive resizing — `autoSize: true` fills container (TradingView managed)
+- Efficient re-render — `series.update()` for live ticks, `series.setData()` only on context change
+- Clean teardown lifecycle — `chart.remove()` on unmount
+
+**Architecture constraint (non-negotiable):**
+Charts are consumers of centralized market state — never owners.
+`Binance WS → BinanceCryptoSource → useMarketStore → useKlineData → CandlestickChart`
+Charts must never fetch Binance directly, never manage WebSocket lifecycle, never duplicate merge logic.
+
+**Bugs resolved in Phase 3B:**
+- Infinite re-render loop — Zustand selector `?? []` returned new reference each call; fixed by accessing stable `undefined`
+- Symbol switch price scale not resetting — added `priceScale().applyOptions({ autoScale: true })` on context change
+- Race condition dropping historical candles — split `contextRef` (active context) + `historyReadyRef` (history gate)
+- Viewport synchronization — moved `fitContent()` into `requestAnimationFrame()`; guarded by `HISTORY_READY_THRESHOLD`
 
 **Completion Conditions:**
-- [ ] `CandlestickChart` component renders OHLCV data for active symbol
-- [ ] Chart updates in real-time as kline stream fires
-- [ ] Switching watchlist symbol updates chart
-- [ ] No duplicate WebSocket connections introduced
-- [ ] Zero TypeScript errors
+- [x] `CandlestickChart` renders OHLCV candlestick data for active symbol
+- [x] Chart updates live every tick (via store — no direct WS access)
+- [x] Switching watchlist symbol resets chart + loads new history
+- [x] TimeframeSelector renders: 1m, 5m, 15m, 1h, 4h, 1D
+- [x] Selecting interval fetches new history + switches live stream
+- [x] Responsive — chart fills container via `autoSize: true`
+- [x] Exactly one WebSocket connection at all times — runtime verified
+- [x] No memory leaks — cleanup verified on symbol/interval/unmount
+- [x] Zero TypeScript errors (`npm run build` clean, 1.07s)
+- [x] No regression in ticker streams or sidebar live prices — runtime verified
 
-#### Phase 3C — Timeframe Selector
-**Status:** PENDING (begins after Phase 3B verification)
+#### Phase 3C — Chart System Consolidation + Advanced Chart Foundation
+**Status:** DEFINED — begins after Phase 3B commit + PR
+**Scope:** Foundational systems engineering for the future chart ecosystem. Not cosmetic.
+
+**Rationale:**
+Phase 3B delivered a working MVP chart. However, `CandlestickChart` is monolithic — chart
+lifecycle, series management, data sync, and rendering are co-located in one component.
+Before introducing CoinGecko metadata, market overview, and analytics layers, the chart engine
+must be extensible. Volume, chart type switching, and future indicators (RSI, MACD, Bollinger)
+require a series registry, a composition contract, and a pane strategy. Phase 3C establishes all of this.
 
 **Objectives:**
-- Timeframe selector UI (1m, 5m, 15m, 1h, 4h, 1D)
-- `useKlineData` receives selected interval from UI
-- Store holds klines per symbol per interval
-- Chart re-fetches history when interval changes
+- Extract `useChartEngine` hook — chart lifecycle + series registry (add/remove/get/clearAll by key)
+- Introduce `PriceChart.tsx` (supersedes `CandlestickChart.tsx`) — multi-series, type-switchable
+- `contextRef` upgraded: tracks `{ symbol, interval, chartType }` — full context for reset detection
+- Volume histogram — `HistogramSeries` on `priceScaleId: 'volume'`, directional green/red coloring
+- Chart type toggle — `ChartTypeSelector` (Candles | Line), series swap without chart recreation
+- Pane strategy defined: Pane 0 (price + overlays + volume), Pane 1+ (oscillators)
+- Indicator hook contract documented: `useXxxIndicator(engine, candles, options) => void`
+- Render performance: price scale reset scoped to symbol change only (not interval or chart type)
+- All existing architecture constraints preserved: charts remain downstream consumers
+
+**New files:**
+- `frontend/src/types/chart.ts` — `ChartType`, `SeriesKey`, `PriceChartContext`
+- `frontend/src/hooks/useChartEngine.ts` — chart + series lifecycle hook
+- `frontend/src/components/charts/PriceChart.tsx` — unified chart component
+- `frontend/src/components/charts/ChartTypeSelector.tsx` — Candles/Line toggle
+
+**Deleted files:**
+- `frontend/src/components/charts/CandlestickChart.tsx` — superseded by `PriceChart.tsx`
 
 **Completion Conditions:**
-- [ ] Timeframe selector renders (1m, 5m, 15m, 1h, 4h, 1D)
-- [ ] Selecting interval triggers REST fetch for new interval's history
-- [ ] Live kline stream switches to new interval
-- [ ] Chart re-renders with correct timeframe data
-- [ ] No regression in ticker streams or existing intervals
+- [ ] `useChartEngine` hook — series registry with add/remove/get/clearAll, chart lifecycle
+- [ ] `PriceChart.tsx` — renders candlestick or line based on `chartType` prop
+- [ ] Volume histogram visible — directional coloring, isolated scale, bottom 25% of pane
+- [ ] Chart type toggle working — Candles ↔ Line, no chart recreation on switch
+- [ ] Volume persists across chart type switch
+- [ ] `ChartTypeSelector` renders in dashboard header
+- [ ] `contextRef` tracks `{ symbol, interval, chartType }` — all three dimensions
+- [ ] Price scale reset only fires on symbol change
+- [ ] `ARCHITECTURE.md` updated — chart engine API, pane convention, indicator hook contract
+- [ ] `DECISIONS.md` — DEC-018 added (chart engine architecture)
+- [ ] Zero TypeScript errors (`npm run build` clean)
+- [ ] Human runtime verification checklist
+- [ ] Commit + PR to `develop`
 
 ### Architecture Decision (Phase 3)
 - **OHLCV source:** Browser-direct Binance REST (no Vercel Function proxy) — deferred to Phase 4 (DEC-017)
 - **Stream manager:** Evolved `BinanceCryptoSource` (not a new class) — DEC-016
+- **Chart engine:** `useChartEngine` hook — series registry pattern (DEC-018, Phase 3C)
 - **Execution order:** 3A → 3B → 3C. Each sub-phase verified before the next begins — MANDATORY
 
 ---

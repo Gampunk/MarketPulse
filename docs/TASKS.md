@@ -1,48 +1,119 @@
 # TASKS.md
 
 **Last Updated:** 2026-05-18
-**Current Phase:** Phase 3 — Charting (next)
+**Current Phase:** Phase 3C — Chart System Consolidation + Advanced Chart Foundation
 
 ---
 
-## Active Tasks (Phase 3)
+## Active Tasks (Phase 3B — Close Out First)
 
-Phase 3 tasks will be defined at the start of the Phase 3 session. See [PHASES.md](PHASES.md) and [ROADMAP.md](ROADMAP.md) for scope.
+- [ ] P3B-CMT: Commit Phase 3B (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
+- [ ] P3B-PR: Push → PR `feature/live-price-engine` → `develop`
+
+---
+
+## Upcoming Tasks (Phase 3C — Awaiting P3B Close-Out)
+
+### 3C-A — `useChartEngine` Hook + Series Registry + `PriceChart` Refactor
+
+- [ ] P3C-A01: Create `frontend/src/types/chart.ts` — `ChartType`, `SeriesKey`, `PriceChartContext`
+- [ ] P3C-A02: Create `frontend/src/hooks/useChartEngine.ts` — chart lifecycle + series registry
+  - `addSeries(key, definition, options)` — replaces existing, cleans up old
+  - `removeSeries(key)` — safe remove with existence guard
+  - `getSeries(key)` — typed lookup
+  - `clearAllSeries()` — full teardown on context reset
+  - Returns: `{ chartRef, addSeries, removeSeries, getSeries, clearAllSeries, isReady }`
+- [ ] P3C-A03: Create `frontend/src/components/charts/PriceChart.tsx`
+  - Props: `{ symbol, interval, chartType }`
+  - `contextRef` upgraded to track `{ symbol, interval, chartType }`
+  - Uses `useChartEngine` for all series operations
+  - Price series (`'price'`): candlestick or line based on `chartType` prop
+  - Series swap on `chartType` change — no chart recreation
+  - `historyReadyRef.current = false` on any context dimension change
+- [ ] P3C-A04: Delete `frontend/src/components/charts/CandlestickChart.tsx`
+- [ ] P3C-A05: Update `DashboardPage.tsx` — import `PriceChart`, add `chartType` state
+- [ ] P3C-A06: `npm run build` → 0 TypeScript errors
+
+### 3C-B — Volume Histogram
+
+- [ ] P3C-B01: Add `'volume'` `HistogramSeries` to `PriceChart` via `useChartEngine`
+  - `priceScaleId: 'volume'` — isolated scale, no price axis interference
+  - Scale margins: `{ top: 0.75, bottom: 0 }` — volume in bottom 25% of main pane
+  - Directional coloring: `c.close >= c.open ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'`
+- [ ] P3C-B02: Volume series data lifecycle — same `historyReadyRef` gate as price series
+  - `setData()` on context change / history load
+  - `update()` on live tick (alongside price `update()`)
+- [ ] P3C-B03: Volume series cleanup — `clearAllSeries()` on unmount covers this automatically
+
+### 3C-C — Chart Type Toggle
+
+- [ ] P3C-C01: Create `frontend/src/components/charts/ChartTypeSelector.tsx`
+  - Props: `{ type: ChartType, onChange: (type: ChartType) => void }`
+  - Buttons: Candles | Line — same styling pattern as `TimeframeSelector`
+- [ ] P3C-C02: Wire `ChartTypeSelector` into `DashboardPage` header
+- [ ] P3C-C03: Verify series swap on chart type change — no chart recreation, volume persists
+
+### 3C-D — Indicator/Overlay Architecture Documentation
+
+- [ ] P3C-D01: Update `ARCHITECTURE.md` — chart engine section
+  - `useChartEngine` API contract
+  - Pane convention: Pane 0 (price + overlays + volume), Pane 1 (oscillators), Pane 2+ (secondary)
+  - `priceScaleId` convention for overlay vs. independent scales
+  - Indicator hook contract: `useXxxIndicator(engine, candles, options) => void`
+- [ ] P3C-D02: Update `DECISIONS.md` — DEC-018 (chart engine architecture decision)
+
+### 3C-E — Render Performance Verification
+
+- [ ] P3C-E01: Audit live tick path — confirm exactly 2 `series.update()` calls per kline event (price + volume), no excess re-renders
+- [ ] P3C-E02: Audit `setData()` — confirm never called during live-update mode
+- [ ] P3C-E03: Refine price scale reset condition — `applyOptions({ autoScale: true })` only on symbol change, not interval or chart type change
+- [ ] P3C-E04: Confirm RAF `fitContent()` still correct after multi-series refactor
+
+### 3C-F — Phase 3C Close-Out
+
+- [ ] P3C-VER: Human runtime verification — chart type toggle, volume visible, symbol switch, interval switch, live updates, no memory leaks
+- [ ] P3C-CMT: Commit Phase 3C (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
+- [ ] P3C-PR: Push → PR `feature/live-price-engine` → `develop`
+
+---
+
+## Completed Tasks (Phase 3B)
+
+- [x] P3B-VER: Human runtime verification — chart renders live, symbol switch works, no loop
+- [x] P3B-001: `CandlestickChart` component — TradingView v5, `addSeries(CandlestickSeries)`, dark theme
+- [x] P3B-002: `TimeframeSelector` component — 1m / 5m / 15m / 1h / 4h / 1D button group
+- [x] P3B-003: `DashboardPage` wired — chart + timeframe selector + stat cards
+- [x] P3B-004: `npm run build` clean — 0 TypeScript errors, 1.07s, 152KB gzipped
+- [x] P3B-005: Phase 3A corrections applied — branch push confirmed, no-main-merge rule recorded
+- [x] P3B-006: Bug fix — infinite re-render loop (Zustand selector `?? []` → stable `undefined`)
+- [x] P3B-007: Bug fix — symbol switch price scale not resetting (added `priceScale().applyOptions({ autoScale: true })`)
+- [x] P3B-008: Bug fix — race condition dropping 299 historical candles (split `contextRef` + `historyReadyRef`)
+- [x] P3B-009: Bug fix — viewport synchronization (`fitContent()` moved into `requestAnimationFrame`)
 
 ---
 
 ## Completed Tasks
 
+### Phase 3A — Centralized Market State Infrastructure — COMPLETE (2026-05-18)
+- [x] P3A-001: `useMarketStore` — 4 slices: tickers, klines, symbols, connection
+- [x] P3A-002: `BinanceCryptoSource.subscribeToKlines()` — live kline stream
+- [x] P3A-003: `updateKlineCandle` merge engine — rolling 500-candle window
+- [x] P3A-004: `useKlineData` hook — historical REST + live stream subscription
+- [x] P3A-005: `usePricesStore` deleted — zero remaining imports
+- [x] P3A-006: `npm run build` → 0 TypeScript errors
+- [x] P3A-007: Committed (`aa94f7a`), branch pushed
+
 ### Phase 2 — Live Price Engine — COMPLETE (2026-05-18)
-- [x] P2-001: `BinanceCryptoSource` in `src/api/market/binance.ts` — implements `MarketDataSource`, combined miniTicker stream, exponential backoff reconnection
-- [x] P2-002: Sidebar watchlist rows show live price + 24h change % (green/red)
-- [x] P2-003: DashboardPage stat cards — Price, Change 24h, Volume 24h, High/Low — live from `PricesStore`
-- [x] P2-004: AddSymbolSearch component — fetches USDT pairs from Binance exchangeInfo, inline search with TanStack Query cache (1h stale)
-- [x] P2-005: Remove-from-watchlist X button on hover, unsubscribes price stream on removal
+- [x] P2-001: `BinanceCryptoSource` — implements `MarketDataSource`, combined miniTicker stream, exponential backoff
+- [x] P2-002: Sidebar watchlist — live price + 24h change % (green/red)
+- [x] P2-003: DashboardPage stat cards — Price, Change 24h, Volume 24h, High/Low — live
+- [x] P2-004: AddSymbolSearch — Binance exchangeInfo, inline search, TanStack Query cache (1h stale)
+- [x] P2-005: Remove-from-watchlist X button on hover, unsubscribes price stream
 
 ### Phase 1.5 — Infrastructure Stabilization — COMPLETE (2026-05-16)
-- [x] UA-001: GitHub repository created and connected (`github.com/Gampunk/MarketPulse`) — `main` + `develop` branches established
-- [x] UA-002: Supabase project created — URL + anon key configured in `.env.local` and Vercel dashboard
-- [x] UA-003: Vercel project linked — production + preview deployments operational; Supabase env vars added to Vercel dashboard
+- [x] UA-001: GitHub repository created (`github.com/Gampunk/MarketPulse`) — `main` + `develop` branches
+- [x] UA-002: Supabase project created — URL + anon key configured
+- [x] UA-003: Vercel project linked — production + preview deployments operational
 
 ### Phase 1 — Project Foundation — COMPLETE (2026-05-16)
-- [x] P1-001: Git repository initialized (`main` branch, `.gitignore`)
-- [x] P1-002: React + Vite + TypeScript scaffold in `/frontend`
-- [x] P1-003: Tailwind CSS v4 configured via Vite plugin
-- [x] P1-004: shadcn/ui configured (`components.json`, `cn()` utility)
-- [x] P1-005: Path alias `@/` working in TypeScript + Vite
-- [x] P1-006: Core dependencies installed (TanStack Query, Zustand, Lightweight Charts, React Router v7)
-- [x] P1-007: TypeScript type system for market data (`src/types/market.ts`)
-- [x] P1-008: Zustand stores — watchlist (localStorage) + prices
-- [x] P1-009: Base layout — AppLayout, TopBar, Sidebar
-- [x] P1-010: DashboardPage placeholder
-- [x] P1-011: React Router v7 + TanStack Query QueryClient in App.tsx
-- [x] P1-012: Vercel Functions scaffold (`/api/health.ts`)
-- [x] P1-013: `vercel.json` build config
-- [x] P1-014: `.env.example` environment variable template
-- [x] P1-015: `npm run build` passes clean — 0 TypeScript errors, 715ms build
-- [x] P1-016: Dev server validated at `localhost:5173`
-
-### Phase 0 — Project Initialization — COMPLETE (2026-05-16)
-- [x] Phase 0A: Environment readiness verification
-- [x] Phase 0B: Technical discovery + architecture stabilization
+- [x] P1-001 through P1-016: Full scaffold, Tailwind v4, shadcn/ui, path aliases, type system, stores, layout, routing, build

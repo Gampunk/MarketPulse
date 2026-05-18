@@ -4,6 +4,152 @@
 
 ---
 
+## Session 006 — 2026-05-18 — Phase 3B Post-Mortem + Phase 3C Definition
+
+### What Happened
+
+Phase 3B was declared complete by the user following successful runtime verification (BTCUSDT chart rendering correctly with live kline updates). The user correctly identified that jumping directly to Phase 4 (Dashboard Depth / CoinGecko / market overview) would bypass necessary chart architecture consolidation.
+
+Phase 3C was formally defined as "Chart System Consolidation + Advanced Chart Foundation" — foundational systems engineering, not cosmetic work.
+
+### Phase 3B Bug Resolution Summary (for continuity)
+
+Four bugs were resolved during Phase 3B (all details in Session 005):
+
+1. **Infinite re-render loop** — `useMarketStore(s => s.getKlines(symbol, interval))` selector returned `?? []` (new array reference each evaluation → Zustand Object.is → infinite re-render). Fixed: changed selector to `s.klines[symbol]?.[interval]` (returns stable `undefined`). Added `EMPTY_CANDLES` module-level constant in store for `getKlines` fallback.
+
+2. **Symbol switch price scale not resetting** — `series.setData()` resets the time axis but not the price axis. ETH chart was rendering against the stale BTC price scale (~77k). Fixed: added `series.priceScale().applyOptions({ autoScale: true })` in the new-context path immediately after `setData()`.
+
+3. **Race condition: 299 historical candles dropped** — `loadedRef` conflated "which context is active" and "has history been loaded for this context." A single live kline arriving before REST history stamped the context → REST history treated as live update → `series.update(last)` only → 299 candles silently dropped. Fixed: split into `contextRef` (active context tracking) + `historyReadyRef` (history gate). Stay in `setData` mode until `HISTORY_READY_THRESHOLD` (50) candles confirm full history.
+
+4. **Viewport synchronization: candles compressed at left edge** — `fitContent()` called synchronously: (a) before TradingView's ResizeObserver measured container dimensions, (b) sometimes on 1-candle partial data (live kline before REST history). Fixed: wrapped `fitContent()` in `requestAnimationFrame()` (fires after ResizeObserver in browser task order). Guarded by `candles.length >= HISTORY_READY_THRESHOLD` — never called on sparse data.
+
+### Architecture Decisions Made This Session
+
+- **DEC-018:** `useChartEngine` hook + series registry pattern (see DECISIONS.md)
+- Phase 3C scope formally documented in PHASES.md
+- TD-011 through TD-014 added to TECH_DEBT.md
+- ARCHITECTURE.md updated with chart engine section, pane convention, indicator hook contract
+
+### Phase 3C Architecture Summary
+
+**Core pattern:** `useChartEngine(containerRef, chartOptions)` hook owns the chart instance and a `Map<string, ISeriesApi>` series registry. `PriceChart.tsx` (supersedes `CandlestickChart.tsx`) uses the engine for all series operations.
+
+**New files (Phase 3C):**
+- `frontend/src/types/chart.ts` — `ChartType`, `SeriesKey`, `PriceChartContext`
+- `frontend/src/hooks/useChartEngine.ts` — chart lifecycle + series registry
+- `frontend/src/components/charts/PriceChart.tsx` — multi-series, type-switchable
+- `frontend/src/components/charts/ChartTypeSelector.tsx` — Candles/Line toggle
+
+**Deleted files (Phase 3C):**
+- `frontend/src/components/charts/CandlestickChart.tsx` — superseded
+
+**Series layout (Phase 3C):**
+- `'price'` — CandlestickSeries or LineSeries (switchable) — Pane 0, main scale
+- `'volume'` — HistogramSeries — Pane 0, `priceScaleId: 'volume'`, margins `{ top: 0.75, bottom: 0 }`
+- Future indicators — Pane 1+ with independent scales
+
+### Pending Before Phase 3C Begins
+
+1. Commit Phase 3B (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
+2. Push → PR `feature/live-price-engine` → `develop`
+3. Begin Phase 3C (tasks P3C-A01 through P3C-F per TASKS.md)
+
+---
+
+## Session 005 — 2026-05-18 — Phase 3B: Chart Component + Timeframe Selector
+
+### Corrections Applied at Session Start
+
+- `feature/live-price-engine` was already pushed to remote (SESSION_CONTEXT.md 004 was wrong — do not merge to main)
+- Git flow confirmed: `feature/live-price-engine → develop → (stabilize) → main`
+- Main must remain production-safe. No merge to main until chart lifecycle verified across sessions.
+
+### Architecture Rule Locked In (Phase 3B+)
+
+Charts are consumers of centralized market state — never owners.
+`Binance WS → BinanceCryptoSource singleton → useMarketStore → useKlineData hook → chart rendering`
+
+Charts must never: fetch Binance directly, manage WebSocket lifecycle, own market infrastructure state, duplicate candle merge logic.
+
+### Implementation Delivered
+
+**New files:**
+- `frontend/src/components/charts/CandlestickChart.tsx` — TradingView Lightweight Charts v5
+  - `chart.addSeries(CandlestickSeries, options)` — v5 API (not deprecated `addCandlestickSeries`)
+  - `autoSize: true` — TradingView owns responsive resize; no custom ResizeObserver needed
+  - `useKlineData(symbol, interval)` called internally — chart manages its subscription lifecycle via the hook
+  - `loadedRef` pattern: detects symbol/interval context change → `setData` + `fitContent`; live tick → `series.update` only (no full redraw every second)
+  - Colors: `#161720` bg, `#2a2b3d` grid, `#22c55e` up, `#ef4444` down — matched to `index.css`
+  - `chart.remove()` on unmount — clean teardown
+- `frontend/src/components/charts/TimeframeSelector.tsx` — pure presentational
+  - Intervals: 1m, 5m, 15m, 1h, 4h, 1D
+  - Active button: `--color-accent` (indigo), inactive: muted with hover states
+
+**Modified files:**
+- `frontend/src/pages/DashboardPage.tsx` — removed Phase 3A verification stub, removed direct `useKlineData` call (now owned by `CandlestickChart`), added `TimeframeSelector`, wired `<CandlestickChart symbol={activeSymbol} interval={interval} />`, retained stat cards
+
+### Key Technical Discovery
+
+TradingView Lightweight Charts v5.2.0 removed `addCandlestickSeries()` from `IChartApi`. Correct v5 API:
+```ts
+import { CandlestickSeries } from 'lightweight-charts'
+const series = chart.addSeries(CandlestickSeries, options)
+```
+`CandlestickSeries` is a `SeriesDefinition` object (not a string), exported by name.
+
+### Build State After Session 005
+
+- `npm run build` → 0 TypeScript errors, 1.07s, 477KB JS bundle (152KB gzipped)
+- Branch: `feature/live-price-engine` (Phase 3B code complete, uncommitted)
+- `lightweight-charts@5.2.0` already installed — no new deps needed
+
+### Pending Before Next Session
+
+1. Human runs Phase 3B runtime verification checklist (below)
+2. Commit Phase 3B (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
+3. Push `feature/live-price-engine` → open PR to `develop`
+4. Do NOT merge to `main`
+
+### Phase 3B Runtime Verification Checklist
+
+Run `npm run dev` at `localhost:5173` and check:
+
+**Chart rendering:**
+- [ ] Candlestick chart renders in the main panel (replaces placeholder text)
+- [ ] Chart fills the panel area responsively
+- [ ] Historical candles visible (300 candles on initial load)
+- [ ] Chart background is dark (`#161720`), candles green/red
+
+**Live updates:**
+- [ ] Open candle updates in real-time (last candle body/wick moves every second)
+- [ ] Console shows `[Binance WS] Kline BTCUSDT/1m (live) close=...` streaming
+
+**Symbol switching:**
+- [ ] Click a different symbol in the sidebar watchlist
+- [ ] Chart clears and reloads with new symbol's history
+- [ ] Console shows `[KlineData] Fetching historical <NEW_SYMBOL>/1m`
+- [ ] Console shows `[KlineData] Loaded 300 historical candles for <NEW_SYMBOL>/1m`
+- [ ] Live kline stream switches to new symbol
+
+**Timeframe switching:**
+- [ ] Timeframe buttons (1m / 5m / 15m / 1h / 4h / 1D) render in header
+- [ ] Clicking 5m fetches 5m history and switches live stream to 5m
+- [ ] Chart re-renders with 5m candle data (candles are wider/larger)
+- [ ] Clicking back to 1m restores 1m data (may use TanStack Query cache)
+
+**WebSocket integrity:**
+- [ ] Network → WS tab shows exactly ONE WebSocket connection throughout all switching
+- [ ] No new WebSocket connections created when switching symbol or timeframe
+- [ ] Sidebar ticker prices continue updating during symbol/timeframe switches
+- [ ] No "WebSocket is closed before connection" errors in console
+
+**Cleanup:**
+- [ ] No console errors on any tab/symbol/interval switch
+- [ ] No memory warnings or excessive re-renders in React DevTools
+
+---
+
 ## Session 004 — 2026-05-18 — Phase 3A: Centralized Market State Infrastructure
 
 ### What Happened

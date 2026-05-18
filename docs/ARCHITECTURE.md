@@ -243,6 +243,93 @@ frontend/
 
 ---
 
+## Chart Engine Architecture (Phase 3C)
+
+The chart rendering layer uses a `useChartEngine` hook as the single point of control for all TradingView series lifecycle operations.
+
+### Data Flow
+
+```
+Binance WS → BinanceCryptoSource → useMarketStore → useKlineData hook
+                                                            ↓
+                                                      PriceChart
+                                                            ↓
+                                                    useChartEngine
+                                                     (series registry)
+                                                    ┌──────┴──────┐
+                                               'price'        'volume'
+                                           CandlestickSeries  HistogramSeries
+                                           or LineSeries
+```
+
+**Architecture rule:** Chart components are downstream consumers of market state. They never own market infrastructure. `useChartEngine` is chart-layer infrastructure only — it manages TradingView API objects, not market data.
+
+### Series Registry
+
+`useChartEngine` maintains a `Map<string, ISeriesApi<keyof SeriesOptionsMap>>` keyed by string name:
+
+| Key | Series Type | Scale | Pane |
+|---|---|---|---|
+| `'price'` | `CandlestickSeries` or `LineSeries` | main | 0 |
+| `'volume'` | `HistogramSeries` | `priceScaleId: 'volume'` | 0 |
+| `'ma20'` (future) | `LineSeries` | main (overlay) | 0 |
+| `'rsi'` (future) | `LineSeries` | `priceScaleId: 'rsi'` | 1 |
+| `'macd'` (future) | `HistogramSeries` | `priceScaleId: 'macd'` | 2 |
+
+### Pane Convention
+
+- **Pane 0 (main):** Price series, overlay series (MA, Bollinger), volume histogram
+- **Pane 1:** Oscillators with their own scale (RSI, Stochastic)
+- **Pane 2+:** Secondary oscillators (MACD, others)
+
+Volume histogram uses `priceScaleId: 'volume'` within Pane 0. Scale margins: `{ top: 0.75, bottom: 0 }` — volume occupies the bottom 25% of the main pane without interfering with the price axis.
+
+### `priceScaleId` Convention
+
+| Series | `priceScaleId` | Why |
+|---|---|---|
+| Price (candlestick/line) | `'right'` (default) | Main price axis — right side |
+| Volume histogram | `'volume'` | Independent scale — volume units are not price units |
+| MA, Bollinger overlays | `'right'` (same as price) | Overlays share the price axis deliberately |
+| RSI | `'rsi'` | 0–100 scale, independent |
+| MACD | `'macd'` | Centered at 0, independent |
+
+### Indicator Hook Contract
+
+Future indicator hooks must follow this composition pattern:
+
+```typescript
+function useXxxIndicator(
+  engine: ChartEngine,    // from useChartEngine
+  candles: Candle[],      // from useMarketStore
+  options: XxxOptions
+): void {
+  useEffect(() => {
+    if (!engine.isReady || !candles.length) return
+    const series = engine.addSeries('xxx', XxxSeriesDefinition, seriesOptions)
+    series.setData(mapCandlesToXxx(candles, options))
+    return () => engine.removeSeries('xxx')
+  }, [engine.isReady, candles, options])
+}
+```
+
+**Key rules:**
+- Indicators call `engine.addSeries()` — never `chartRef.current.addSeries()` directly
+- Indicators handle their own data mapping — never modify the market store
+- Indicators return cleanup that calls `engine.removeSeries()` — no manual series tracking
+- `engine.isReady` guard prevents calls before chart is mounted
+
+### Chart Context Dimensions
+
+`PriceChart` tracks `{ symbol, interval, chartType }` as the full context. Any dimension change triggers series reset:
+- **Symbol change:** reset series, reset price scale, call `fitContent()`
+- **Interval change:** reset series (different data window), call `fitContent()`
+- **Chart type change:** swap price series only, volume series persists, call `fitContent()`
+
+Price scale auto-calibration (`priceScale().applyOptions({ autoScale: true })`) fires only on symbol change — not on interval or chart type change. Interval and chart type changes don't require price axis recalibration because the price range for the same symbol is consistent.
+
+---
+
 ## State Management Strategy
 
 | Data Type | Tool | Reason |

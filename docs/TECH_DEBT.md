@@ -159,6 +159,60 @@ No automated deployment gates, no rollback automation.
 
 ---
 
+### TD-011 — `HISTORY_READY_THRESHOLD` Is a Magic Number
+
+**Added:** 2026-05-18 | **Priority:** LOW | **Target:** Phase 3C
+**Phase Introduced:** Phase 3B (bug fix)
+
+**Description:** `HISTORY_READY_THRESHOLD = 50` in `CandlestickChart.tsx` distinguishes a full REST history response (300 candles) from a single live kline (1 candle) arriving before REST completes. Works because Binance's default `limit` is 300. If `fetchKlines` limit changes or a sparse market returns fewer candles, the threshold may gate incorrectly.
+
+**Accepted Because:** Correct at current `limit=300`. Handles the race condition reliably at MVP scale.
+
+**When to Address:** Phase 3C. Derive threshold from actual fetch limit (`limit * 0.15` or explicit constant imported from the fetcher), not a standalone magic number.
+
+---
+
+### TD-012 — `useKlineData` Callback Is a No-Op
+
+**Added:** 2026-05-18 | **Priority:** LOW | **Target:** Phase 3C or 4
+**Phase Introduced:** Phase 3A
+
+**Description:** `binanceSource.subscribeToKlines(symbol, interval, () => {})` — the callback passed from `useKlineData` does nothing. The actual store write happens inside `BinanceCryptoSource.handleKline()` directly via `useMarketStore.getState().updateKlineCandle()`. The `subscribeToKlines` callback exists in the `MarketDataSource` interface for source implementations that need per-consumer callbacks, but the Binance implementation bypasses it.
+
+**Accepted Because:** Architecturally correct — the store is the write destination, not individual consumers. The callback is a hook in the interface for future flexibility.
+
+**When to Address:** Either document explicitly in `useKlineData` (preferred), or remove the callback from `MarketDataSource` if no implementation ever uses it.
+
+---
+
+### TD-013 — `TimeframeSelector` Does Not Expose `1w`
+
+**Added:** 2026-05-18 | **Priority:** LOW | **Target:** Phase 3C or 4
+**Phase Introduced:** Phase 3B
+
+**Description:** `Interval` type includes `'1w'` but `TimeframeSelector` only renders `['1m', '5m', '15m', '1h', '4h', '1d']`. Minor inconsistency — the type system promises `1w` support but the UI doesn't expose it.
+
+**Accepted Because:** `1w` candles on a 300-candle history window would only show ~6 years of data — lower priority. Binance supports weekly klines.
+
+**When to Address:** Phase 3C or 4. Add `1w` to `TimeframeSelector` if weekly charting is a product priority.
+
+---
+
+### TD-014 — No Line Chart Toggle
+
+**Added:** 2026-05-18 | **Priority:** MEDIUM | **Target:** Phase 3C
+**Phase Introduced:** Phase 3B
+
+**Description:** ROADMAP.md Phase 3 originally included "Candlestick + Line chart with toggle." Not delivered in Phase 3B. `CandlestickChart` only renders candlestick. No mechanism exists to swap series type without chart recreation.
+
+**When to Address:** Phase 3C. The `useChartEngine` series registry enables clean series swapping. `ChartTypeSelector` and `PriceChart` deliver this as part of Phase 3C scope.
+
+---
+
 ## Resolved Technical Debt
 
-None yet.
+### TD-009 — Placeholder UI (No Live Data) — RESOLVED Phase 2
+**Resolved:** 2026-05-18 — `BinanceCryptoSource` wired, sidebar + stat cards show live data
+
+### TD-004 — No Error Boundaries on WebSocket Disconnects — PARTIALLY RESOLVED Phase 2
+**Status:** Reconnection logic implemented in `BinanceCryptoSource` (exponential backoff, `resubscribeAll`). UI status indicator still pending — tracked in Phase 5.

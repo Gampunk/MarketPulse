@@ -1,14 +1,22 @@
 # CURRENT_STATE.md
 
 **Last Updated:** 2026-05-18
-**Current Phase:** Phase 3A Complete — Pending Verification
+**Current Phase:** Phase 3C — Chart System Consolidation (DEFINED — pending Phase 3B commit)
 **System State:** BUILDING
 
 ---
 
 ## Active Focus
 
-Phase 3A (Centralized Market State Infrastructure) is implemented and build-verified. All source code changes are complete. Awaiting human verification checklist before committing. Phase 3B (chart rendering) must not begin until Phase 3A verification is signed off.
+Phase 3B is runtime-verified and complete — pending commit + PR to `develop`. Phase 3C is formally defined and begins after Phase 3B administrative close-out.
+
+**Git flow rule:** `feature/live-price-engine → develop → (stabilize) → main`. Do NOT merge to main until chart system consolidation (Phase 3C) is complete and verified.
+
+**Critical architecture rule (enforced Phase 3B+):**
+Charts are consumers of centralized market state — never owners. Charts must: subscribe to Zustand store slices only, consume `useKlineData`/store outputs, never fetch from Binance directly, never manage WebSocket lifecycle, never own realtime infrastructure state, never duplicate candle merge logic.
+
+**Phase 3C architecture rule (new):**
+Chart series are managed through a `useChartEngine` hook series registry — never via individual named refs. All add/remove/swap operations go through the registry. Future indicator hooks compose with the chart via the engine API — never by reaching into component refs directly.
 
 ---
 
@@ -30,9 +38,9 @@ Phase 3A (Centralized Market State Infrastructure) is implemented and build-veri
 |-----------------------------|----------------------------------------|---------------------|
 | `main`                      | Infrastructure baseline                | `origin/main`       |
 | `develop`                   | Governance migration merged            | `origin/develop`    |
-| `feature/live-price-engine` | Phase 3A complete — pending commit     | not yet pushed      |
+| `feature/live-price-engine` | Phase 3B in progress                   | pushed to remote    |
 
-**Next git action:** Verify Phase 3A checklist → commit → push `feature/live-price-engine` → PR to `develop`
+**Next git action:** Complete Phase 3B → verify runtime → commit → PR to `develop`
 
 ---
 
@@ -54,7 +62,7 @@ Vercel Project
 - **Vercel:** Production + preview deployments functioning
 - **Supabase:** Project created, credentials available
 - **Local dev server:** `localhost:5173`
-- **React + Vite build:** 0 TypeScript errors, 664ms build
+- **React + Vite build:** 0 TypeScript errors, 1.07s build, 152KB gzipped
 - **Dark trading dashboard UI:** Full layout rendered
 - **Binance WebSocket (singleton):** Persistent connection, SUBSCRIBE/UNSUBSCRIBE protocol
   - One connection handles all ticker + kline streams simultaneously
@@ -75,7 +83,17 @@ Vercel Project
 - **`useKlineData` hook:** Historical REST fetch (TanStack Query) + live stream subscription
   - Deposits history into market store on first load
   - Merges live kline updates from WebSocket stream
-- **Phase 3A verification stub:** DashboardPage shows "1m candles loaded: N" in chart placeholder
+- **`CandlestickChart` component** (`components/charts/CandlestickChart.tsx`):
+  - TradingView Lightweight Charts v5 (`chart.addSeries(CandlestickSeries, ...)`)
+  - `autoSize: true` — responsive, fills container without manual ResizeObserver
+  - `useKlineData(symbol, interval)` called internally — chart owns its subscription via hook
+  - `loadedRef` pattern: `setData` on symbol/interval context change, `series.update` on live tick
+  - Dark theme: colors matched to CSS vars in `index.css`
+  - `chart.remove()` on unmount — clean teardown, no leaks
+- **`TimeframeSelector` component** (`components/charts/TimeframeSelector.tsx`):
+  - Button group: 1m | 5m | 15m | 1h | 4h | 1D
+  - Active interval highlighted with `--color-accent` (indigo)
+- **DashboardPage:** Timeframe state (`useState<Interval>('1m')`), `CandlestickChart` + `TimeframeSelector` wired, stat cards retained
 
 ---
 
@@ -83,9 +101,11 @@ Vercel Project
 
 | Feature                          | Status      | Phase   |
 |----------------------------------|-------------|---------|
-| TradingView Lightweight Charts   | NOT BUILT   | Phase 3B|
-| Timeframe selector UI            | NOT BUILT   | Phase 3C|
-| Multiple intervals in store      | NOT BUILT   | Phase 3C|
+| `useChartEngine` hook            | NOT BUILT   | Phase 3C|
+| `PriceChart` (multi-series)      | NOT BUILT   | Phase 3C|
+| Volume histogram                 | NOT BUILT   | Phase 3C|
+| Chart type toggle (Candles/Line) | NOT BUILT   | Phase 3C|
+| Indicator/overlay foundation     | NOT BUILT   | Phase 3C|
 | Supabase database schema         | NOT CREATED | Phase 4 |
 | Vercel Functions / Backend API   | NOT DEPLOYED| Phase 4 |
 | Coin metadata (logos, names)     | NOT BUILT   | Phase 4 |
@@ -97,13 +117,13 @@ Vercel Project
 
 ## Active Blockers
 
-None. Phase 3A source code complete. Awaiting human verification before commit.
+None.
 
 ---
 
 ## Next Actions
 
-1. **Human:** Run verification checklist (see SESSION_CONTEXT.md Session 004)
-2. Commit Phase 3A (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
-3. Push `feature/live-price-engine` → open PR to `develop`
-4. Begin Phase 3B planning (TradingView chart component)
+1. Commit Phase 3B (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`) ← immediate
+2. Push → PR `feature/live-price-engine` → `develop` ← immediate
+3. Begin Phase 3C implementation (see TASKS.md — tasks P3C-A01 through P3C-F)
+4. Do NOT merge to `main` until Phase 3C is complete and verified

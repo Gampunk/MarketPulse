@@ -379,3 +379,30 @@ feature/* → develop (preview deploy) → main (production deploy)
 **Accepted Risk:** Rate limiting if many users repeatedly switch timeframes rapidly. Acceptable at MVP scale.
 
 **Decision Confidence:** HIGH
+
+---
+
+## DEC-018 — Chart Engine Architecture: `useChartEngine` Hook + Series Registry
+
+**Date:** 2026-05-18
+**Status:** APPROVED — ACTIVE (Phase 3C)
+
+**Decision:** Extract chart infrastructure into a `useChartEngine` hook that owns the chart instance lifecycle and a named series registry (`Map<string, ISeriesApi>`). The chart component (`PriceChart`) uses this hook for all series operations. Future indicator hooks compose with the chart via the engine API.
+
+**Context:** Phase 3B delivered a working `CandlestickChart` with one hard-coded `CandlestickSeries` ref. Phase 3C requires: volume histogram (second series), chart type switching (candlestick ↔ line, requiring series swap), and a foundation for future indicator hooks (RSI, MACD, Bollinger). The single-ref model cannot support this cleanly.
+
+**Alternatives Considered:**
+- **Extend `CandlestickChart` with additional named refs:** `volumeSeriesRef`, `lineSeriesRef`, etc. — ref proliferation; no structured teardown; doesn't scale to overlays; no composition contract for future hooks.
+- **React context for chart instance (child composition model):** `<Chart>` renders canvas, child components register series via context. Most extensible but requires component tree restructuring and context overhead — appropriate for Phase 10 advanced charting, not Phase 3C.
+- **Series management inline in component with a registry ref:** Correct pattern but better encapsulated in a hook for reuse and testability.
+
+**Rationale:**
+- A hook encapsulates the registry without changing the component API surface
+- `addSeries(key, definition, options)` with implicit replace-if-exists is the correct primitive for chart type switching — one call handles the swap cleanly
+- `clearAllSeries()` gives future indicator hooks a safe teardown path on context reset
+- Future `useXxxIndicator(engine, candles, options)` hooks compose without touching the chart component — the engine API is the stable contract
+- `isReady` guard prevents series operations before the chart is mounted — eliminates a class of timing bugs
+
+**Governance Rule:** Indicator hooks must use `engine.addSeries()` — never `chartRef.current.addSeries()` directly. This ensures all series are tracked in the registry and cleaned up correctly.
+
+**Decision Confidence:** HIGH
