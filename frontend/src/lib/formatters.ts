@@ -7,6 +7,7 @@ export function formatPrice(price: number): string {
 }
 
 export function formatVolume(volume: number): string {
+  if (volume >= 1_000_000_000_000) return `${(volume / 1_000_000_000_000).toFixed(2)}T`
   if (volume >= 1_000_000_000) return `${(volume / 1_000_000_000).toFixed(2)}B`
   if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(2)}M`
   if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`

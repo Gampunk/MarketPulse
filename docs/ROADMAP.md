@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-19
 **Vision:** Browser-based financial market dashboard providing real-time crypto and forex market visibility through clean visual analytics and responsive user experience.
 
 ---
@@ -9,10 +9,12 @@
 
 Ship a production-quality crypto market dashboard with:
 - Live price watchlist (tick-by-tick, <1s updates)
-- Candlestick + line charts with OHLCV data
+- Candlestick + line charts with OHLCV data and volume histogram
 - Market overview (gainers/losers, global stats)
 - Dark mode, desktop-first UX
 - Deployed on Vercel, backed by Supabase
+
+**MVP Status:** Core feature set complete (Phases 1–4). Phase 5 stabilization required before MVP release tag.
 
 ---
 
@@ -20,84 +22,65 @@ Ship a production-quality crypto market dashboard with:
 
 ### Phase 0 — Project Initialization ✅ COMPLETE
 **Completed:** 2026-05-16
-- Environment readiness verification
-- Stack selection and approval
-- Architecture stabilization
-- Operational documentation initialized
 
 ### Phase 1 — Project Foundation ✅ COMPLETE
 **Completed:** 2026-05-16
-- Git repository initialized
-- React 19 + Vite + TypeScript scaffold
-- Tailwind CSS v4 + shadcn/ui configured
-- Path alias `@/`, TypeScript types, Zustand stores
-- Base layout (AppLayout, Sidebar, TopBar, DashboardPage)
-- React Router v7 + TanStack Query v5 configured
-- `npm run build` passing clean (715ms, 0 errors)
+- React 19 + Vite + TypeScript + Tailwind v4 scaffold
+- Base layout, routing, type system, Zustand stores
 
 ### Phase 1.5 — Infrastructure Stabilization ✅ COMPLETE
 **Completed:** 2026-05-16
-- GitHub repository connected (`github.com/Gampunk/MarketPulse`)
-- `main` + `develop` branches established
-- Vercel deployment fixed and stabilized
-  - Root Directory set to `frontend/`
-  - `frontend/vercel.json` with SPA rewrite rules
-  - Preview + production deployments working
-- Supabase project created, credentials configured
-- Environment variable pipeline established (local + Vercel)
-- Deployment lessons documented
+- GitHub, Vercel, Supabase connected and operational
 
-### Phase 2 — Live Price Engine 🔄 NEXT
-**Scope:**
-- Implement `BinanceCryptoSource` (MarketDataSource interface)
-- Binance combined WebSocket stream (tick-by-tick)
-- Live prices in Sidebar watchlist rows (price + 24h change %)
-- Active symbol price stats in Dashboard
+### Phase 2 — Live Price Engine ✅ COMPLETE
+**Completed:** 2026-05-18
+- Binance WebSocket singleton — tick-by-tick prices
+- Sidebar watchlist — live price + 24h change %
 - Coin search + add/remove from watchlist
-- WebSocket reconnection handling (basic)
+- WebSocket reconnection with exponential backoff
 
-**Completion Conditions:**
-- Prices update in browser <1s from Binance stream
-- Sidebar shows live price + color-coded 24h change for all watchlist items
-- User can add any USDT pair to watchlist
-- User can remove symbols from watchlist
-- Watchlist persists across browser refresh
+### Phase 3 — Charting ✅ COMPLETE
+**Completed:** 2026-05-18
+- Phase 3A: Centralized market store (`useMarketStore`) — klines, tickers, merge engine
+- Phase 3B: TradingView Lightweight Charts v5 — candlestick, live updates
+- Phase 3C: `useChartEngine` — series registry, PriceChart (multi-type), volume histogram, chart type toggle
 
-### Phase 3 — Charting + OHLCV Pipeline
+### Phase 4 — Market Intelligence + Analytics Ecosystem ✅ COMPLETE
+**Completed:** 2026-05-19
+- Phase 4A: CoinGecko metadata — coin logos, names, market cap ranks in sidebar + header
+- Phase 4B: Analytics orchestrator — top gainers/losers, global market stats, 15min refresh
+  - `MarketOverview` component — memo-wrapped, zero price-tick re-renders
+  - Volume crosshair tooltip (bubble overlay replacing persistent axis label)
+  - Scrollable layout with responsive chart height
+
+### Phase 5 — Stabilization + Production Hardening 🔄 NEXT
+**Status:** PENDING — begins after Phase 4 close-out and develop merge
+
 **Scope:**
-- TradingView Lightweight Charts integration
-- Candlestick chart + Line chart with toggle
-- Time range selector (15m, 1h, 4h, 1D, 1W, 1M)
-- OHLCV data pipeline: Binance REST → Vercel Function → Supabase cache
-- Relocate `/api/` to `frontend/api/` (backend deployment fix — TD-005)
-- Supabase `ohlcv_cache` table schema
-- Chart updates when watchlist symbol clicked
-
-### Phase 4 — Dashboard Depth
-**Scope:**
-- Market overview panel (top gainers/losers by 24h change)
-- Global market stats (BTC dominance, total market cap — CoinGecko)
-- Coin metadata (logo, name, market cap rank — CoinGecko)
-- Volume bars on candlestick charts
-- CoinGecko rate limit management
-
-### Phase 5 — Stabilization + Tech Debt
-**Scope:**
-- WebSocket reconnection polish (exponential backoff, UI status indicator)
-- React error boundaries
-- Performance profiling + optimization
-- CI/CD: GitHub Actions (TypeScript check + ESLint + build gate)
-- Forex data source research + MarketDataSource abstraction validation
-- Tech debt cleanup (TD-003, TD-004, TD-007, TD-010)
-- Merge `develop` → `main` as stable MVP release
+- WebSocket reconnection UI indicator (status badge in TopBar)
+- React error boundaries (chart, market overview, sidebar)
+- CI/CD: GitHub Actions (TypeScript check + ESLint + build gate on PR)
+- Technical debt cleanup:
+  - TD-003: Vercel Functions not used (backend scaffolding unused)
+  - TD-004: Supabase credentials in env but no DB schema
+  - TD-005: OHLCV not proxied through Vercel Function
+  - TD-006: No rate limiting on CoinGecko calls
+  - TD-007: localStorage watchlist not backed by server state
+  - TD-010: No error boundaries — chart crash = blank screen
+  - TD-011: TanStack Query devtools not removed in production build
+  - TD-012: No loading state in DashboardPage header (flickers on first load)
+  - TD-015: WebSocket reconnection count not surfaced in UI
+  - TD-017: DashboardPage header re-renders on every price tick (memo opportunity)
+- Performance profiling + optimization pass
+- Merge `develop → main` as stable MVP release tag
 
 ---
 
 ## Post-MVP Roadmap (Future Phases)
 
 ### Phase 6 — Forex Integration
-- Add forex data source (OANDA practice account — best free option)
-- Implement `ForexSource implements MarketDataSource`
+- OANDA practice account data source
+- `ForexSource implements MarketDataSource`
 - Currency pair watchlist + forex charts
 - Unified asset type indicator in UI
 
@@ -115,6 +98,7 @@ Ship a production-quality crypto market dashboard with:
 ### Phase 9 — AI Market Insights
 - Sentiment analysis integration (Finnhub news feed)
 - Market narrative generation (Claude API)
+- `lastRefreshedAt` hook point in analytics orchestrator — designed entry point for AI narrative triggers
 - AI-assisted pattern recognition (experimental)
 
 ### Phase 10 — Advanced Charting
@@ -132,4 +116,4 @@ Ship a production-quality crypto market dashboard with:
 
 ## Long-Term Vision
 
-Expandable into a multi-asset analytics platform with AI-assisted market insights, price alerts, and advanced charting. Architecture decisions made today (MarketDataSource abstraction, modular Zustand stores, pluggable data sources, Supabase Auth readiness) are specifically designed to enable this path without rewrites.
+Expandable into a multi-asset analytics platform with AI-assisted market insights, price alerts, and advanced charting. Architecture decisions made today (MarketDataSource abstraction, centralized Zustand store, AppCore orchestrator pattern, pluggable data sources, Supabase Auth readiness) are specifically designed to enable this path without rewrites.

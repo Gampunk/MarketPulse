@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { PriceChange, Candle, Interval, MarketSymbol, ConnectionStatus } from '@/types/market'
-import type { CoinMeta } from '@/types/metadata'
+import type { CoinMeta, GlobalMarketStats, TopMoverCoin } from '@/types/metadata'
 
 // Stable empty reference — safe to return from getKlines when no data exists.
 // A literal [] would create a new reference on every call, breaking Zustand reactive selectors.
@@ -38,6 +38,19 @@ interface MarketStore {
   // Derives baseAsset from a Binance pair symbol by stripping USDT suffix.
   // Valid for all USDT pairs (the only pairs AddSymbolSearch allows — TD-016).
   getCoinMeta: (binanceSymbol: string) => CoinMeta | undefined
+
+  // Analytics slice — populated by useAnalyticsOrchestrator (Phase 4B)
+  // lastRefreshedAt is the AI/event hook point: non-null when the first complete snapshot has arrived.
+  analytics: {
+    topGainers: TopMoverCoin[]
+    topLosers: TopMoverCoin[]
+    globalStats: GlobalMarketStats | null
+    lastRefreshedAt: number | null
+  }
+  setTopGainers: (coins: TopMoverCoin[]) => void
+  setTopLosers: (coins: TopMoverCoin[]) => void
+  setGlobalStats: (stats: GlobalMarketStats) => void
+  setAnalyticsLastRefreshed: (ts: number) => void
 
   // Connection state slice — driven by BinanceCryptoSource lifecycle events
   connection: ConnectionState
@@ -142,6 +155,42 @@ export const useMarketStore = create<MarketStore>()(
         const baseAsset = binanceSymbol.replace(/USDT$/, '')
         return get().coinMetadata[baseAsset]
       },
+
+      // ── Analytics ────────────────────────────────────────────────────────
+      analytics: {
+        topGainers: [],
+        topLosers: [],
+        globalStats: null,
+        lastRefreshedAt: null,
+      },
+
+      setTopGainers: coins =>
+        set(
+          state => ({ analytics: { ...state.analytics, topGainers: coins } }),
+          false,
+          'analytics/setTopGainers'
+        ),
+
+      setTopLosers: coins =>
+        set(
+          state => ({ analytics: { ...state.analytics, topLosers: coins } }),
+          false,
+          'analytics/setTopLosers'
+        ),
+
+      setGlobalStats: stats =>
+        set(
+          state => ({ analytics: { ...state.analytics, globalStats: stats } }),
+          false,
+          'analytics/setGlobalStats'
+        ),
+
+      setAnalyticsLastRefreshed: ts =>
+        set(
+          state => ({ analytics: { ...state.analytics, lastRefreshedAt: ts } }),
+          false,
+          'analytics/setLastRefreshed'
+        ),
 
       // ── Connection ────────────────────────────────────────────────────────
       connection: {

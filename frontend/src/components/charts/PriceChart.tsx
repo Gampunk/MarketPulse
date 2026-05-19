@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ColorType,
   CrosshairMode,
@@ -6,10 +6,11 @@ import {
   LineSeries,
   HistogramSeries,
 } from 'lightweight-charts'
-import type { UTCTimestamp } from 'lightweight-charts'
+import type { UTCTimestamp, MouseEventParams } from 'lightweight-charts'
 import { useMarketStore } from '@/stores/market'
 import { useKlineData } from '@/hooks/useKlineData'
 import { useChartEngine } from '@/hooks/useChartEngine'
+import { formatVolume } from '@/lib/formatters'
 import type { Interval, Candle } from '@/types/market'
 import type { ChartType, PriceChartContext } from '@/types/chart'
 
@@ -59,6 +60,9 @@ const HISTOGRAM_OPTIONS = {
 
 const VOLUME_SCALE_OPTIONS = {
   scaleMargins: { top: 0.75, bottom: 0 },
+  // Hide the volume axis — value is surfaced via crosshair tooltip instead.
+  visible: false,
+  borderVisible: false,
 }
 
 // --- Data mappers (module-level — no recreation on each render) ---
@@ -86,6 +90,11 @@ interface Props {
   chartType: ChartType
 }
 
+interface VolumeTooltip {
+  formatted: string
+  isGreen: boolean
+}
+
 export function PriceChart({ symbol, interval, chartType }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -100,6 +109,9 @@ export function PriceChart({ symbol, interval, chartType }: Props) {
   // candles are present, preventing the race where a live kline before REST history
   // causes the component to enter update() mode with incomplete data.
   const historyReadyRef = useRef(false)
+
+  // Volume tooltip — shown in chart top-left on crosshair hover, null when inactive.
+  const [volumeTooltip, setVolumeTooltip] = useState<VolumeTooltip | null>(null)
 
   // Data subscription — deposits history + subscribes live stream into useMarketStore.
   // Chart is a pure consumer of store state; this hook owns the data pipeline.
@@ -180,5 +192,51 @@ export function PriceChart({ symbol, interval, chartType }: Props) {
     }
   }, [candles, symbol, interval, chartType, engine.isReady])
 
-  return <div ref={containerRef} className="w-full h-full" />
+  // Crosshair subscription — drives the volume tooltip bubble.
+  // Reads the volume series data at the hovered bar and sets tooltip state.
+  // The subscription is established once when the chart is ready and torn down on unmount.
+  useEffect(() => {
+    if (!engine.isReady) return
+    const chart = engine.chartRef.current
+    if (!chart) return
+
+    const handler = (param: MouseEventParams) => {
+      const volumeSeries = engine.getSeries('volume')
+      if (!param.time || !volumeSeries) {
+        setVolumeTooltip(null)
+        return
+      }
+      const bar = param.seriesData.get(volumeSeries) as { value?: number; color?: string } | undefined
+      if (!bar?.value) {
+        setVolumeTooltip(null)
+        return
+      }
+      setVolumeTooltip({
+        formatted: formatVolume(bar.value),
+        // Green bar = close >= open (color contains the green RGB values)
+        isGreen: (bar.color ?? '').includes('34,197'),
+      })
+    }
+
+    chart.subscribeCrosshairMove(handler)
+    return () => { chart.unsubscribeCrosshairMove(handler) }
+  }, [engine.isReady])
+
+  return (
+    <div ref={containerRef} className="w-full h-full relative">
+      {volumeTooltip && (
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] pointer-events-none select-none">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+            Vol
+          </span>
+          <span
+            className="font-mono text-xs font-semibold"
+            style={{ color: volumeTooltip.isGreen ? 'var(--color-green)' : 'var(--color-red)' }}
+          >
+            {volumeTooltip.formatted}
+          </span>
+        </div>
+      )}
+    </div>
+  )
 }

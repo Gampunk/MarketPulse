@@ -49,26 +49,19 @@ export async function fetchGlobalStats(): Promise<GlobalMarketStats> {
   }
 }
 
-// Top movers by 24h price change — sorted desc for gainers, asc for losers.
-// Used by Phase 4B market overview panel.
-export async function fetchTopMovers(limit: number): Promise<TopMoverCoin[]> {
-  const url =
-    `${REST_BASE}/coins/markets` +
-    `?vs_currency=usd&order=price_change_percentage_24h_desc` +
-    `&per_page=${limit * 2}&page=1&sparkline=false` +
-    `&price_change_percentage=24h&locale=en`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`CoinGecko /coins/markets (movers) ${res.status}`)
-  const raw: {
-    id: string
-    symbol: string
-    name: string
-    image: string
-    market_cap_rank: number
-    price_change_percentage_24h: number
-    current_price: number
-  }[] = await res.json()
-  return raw.map(c => ({
+// Shared response shape for top gainers and top losers endpoints.
+type RawMoverCoin = {
+  id: string
+  symbol: string
+  name: string
+  image: string
+  market_cap_rank: number
+  price_change_percentage_24h: number
+  current_price: number
+}
+
+function mapMoverCoin(c: RawMoverCoin): TopMoverCoin {
+  return {
     id: c.id,
     symbol: c.symbol,
     name: c.name,
@@ -76,5 +69,39 @@ export async function fetchTopMovers(limit: number): Promise<TopMoverCoin[]> {
     marketCapRank: c.market_cap_rank ?? 9999,
     changePct24h: c.price_change_percentage_24h ?? 0,
     priceUsd: c.current_price ?? 0,
-  }))
+  }
+}
+
+// Fetches a broad market cap universe and derives top gainers + losers client-side.
+//
+// Why not use order=price_change_percentage_24h_desc/asc on the CoinGecko free tier?
+// The free-tier endpoint ignores that order param and returns market-cap-ranked results
+// regardless, causing both gainers and losers lists to show the same large-cap coins.
+//
+// Fix: fetch top `universeSize` coins by market cap (the reliable ordering), then sort
+// the result ourselves by 24h change. Filter: only genuinely positive coins as gainers,
+// only genuinely negative coins as losers — they will never share a coin.
+export async function fetchMarketMovers(
+  universeSize: number,
+  topN: number
+): Promise<{ gainers: TopMoverCoin[]; losers: TopMoverCoin[] }> {
+  const url =
+    `${REST_BASE}/coins/markets` +
+    `?vs_currency=usd&order=market_cap_desc&per_page=${universeSize}&page=1` +
+    `&sparkline=false&price_change_percentage=24h&locale=en`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`CoinGecko /coins/markets (movers) ${res.status}`)
+  const coins = ((await res.json()) as RawMoverCoin[]).map(mapMoverCoin)
+
+  const gainers = [...coins]
+    .filter(c => c.changePct24h > 0)
+    .sort((a, b) => b.changePct24h - a.changePct24h)
+    .slice(0, topN)
+
+  const losers = [...coins]
+    .filter(c => c.changePct24h < 0)
+    .sort((a, b) => a.changePct24h - b.changePct24h)
+    .slice(0, topN)
+
+  return { gainers, losers }
 }

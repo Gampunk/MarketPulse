@@ -1,7 +1,7 @@
 # PHASES.md
 
-**Last Updated:** 2026-05-18
-**Active Sub-phase:** Phase 3B — Chart Component (IN PROGRESS)
+**Last Updated:** 2026-05-19
+**Active Sub-phase:** Phase 4B — Market Overview + Analytics Layer (COMPLETE — pending close-out)
 
 ---
 
@@ -82,8 +82,8 @@
 
 ## Phase 3 — Charting
 
-**Status:** IN PROGRESS (Phase 3A complete, 3B complete pending commit, 3C defined)
-**Depends On:** Phase 2
+**Status:** COMPLETE
+**Completed:** 2026-05-18
 
 ### Sub-phases
 
@@ -106,36 +106,14 @@
 - [x] `BinanceCryptoSource.subscribeToKlines()` implemented
 - [x] `updateKlineCandle` merge logic: live replace, closed append, discard stale
 - [x] `useKlineData` hook deposits history + subscribes live kline stream
-- [x] `DashboardPage` shows "1m candles loaded: N" (Phase 3A verification)
 - [x] `usePricesStore` deleted — zero remaining imports
 - [x] `npm run build` → 0 TypeScript errors
 - [x] Human runtime verification (browser checklist)
 - [x] Phase 3A commit pushed (`aa94f7a`)
 
 #### Phase 3B — Chart Component + Timeframe Selector (TradingView)
-**Status:** COMPLETE — runtime verified, pending commit + PR
+**Status:** COMPLETE — committed (`faed40a`), pushed
 **Completed:** 2026-05-18
-
-**Objectives:**
-- Integrate TradingView Lightweight Charts v5
-- `CandlestickChart` — reusable, consumes `useMarketStore` klines slice via `useKlineData`
-- Live candlestick rendering — chart updates as kline stream fires
-- Symbol switching — chart resets and loads history for new symbol
-- Timeframe switching — `TimeframeSelector` UI (1m, 5m, 15m, 1h, 4h, 1D)
-- Responsive resizing — `autoSize: true` fills container (TradingView managed)
-- Efficient re-render — `series.update()` for live ticks, `series.setData()` only on context change
-- Clean teardown lifecycle — `chart.remove()` on unmount
-
-**Architecture constraint (non-negotiable):**
-Charts are consumers of centralized market state — never owners.
-`Binance WS → BinanceCryptoSource → useMarketStore → useKlineData → CandlestickChart`
-Charts must never fetch Binance directly, never manage WebSocket lifecycle, never duplicate merge logic.
-
-**Bugs resolved in Phase 3B:**
-- Infinite re-render loop — Zustand selector `?? []` returned new reference each call; fixed by accessing stable `undefined`
-- Symbol switch price scale not resetting — added `priceScale().applyOptions({ autoScale: true })` on context change
-- Race condition dropping historical candles — split `contextRef` (active context) + `historyReadyRef` (history gate)
-- Viewport synchronization — moved `fitContent()` into `requestAnimationFrame()`; guarded by `HISTORY_READY_THRESHOLD`
 
 **Completion Conditions:**
 - [x] `CandlestickChart` renders OHLCV candlestick data for active symbol
@@ -150,26 +128,8 @@ Charts must never fetch Binance directly, never manage WebSocket lifecycle, neve
 - [x] No regression in ticker streams or sidebar live prices — runtime verified
 
 #### Phase 3C — Chart System Consolidation + Advanced Chart Foundation
-**Status:** DEFINED — begins after Phase 3B commit + PR
-**Scope:** Foundational systems engineering for the future chart ecosystem. Not cosmetic.
-
-**Rationale:**
-Phase 3B delivered a working MVP chart. However, `CandlestickChart` is monolithic — chart
-lifecycle, series management, data sync, and rendering are co-located in one component.
-Before introducing CoinGecko metadata, market overview, and analytics layers, the chart engine
-must be extensible. Volume, chart type switching, and future indicators (RSI, MACD, Bollinger)
-require a series registry, a composition contract, and a pane strategy. Phase 3C establishes all of this.
-
-**Objectives:**
-- Extract `useChartEngine` hook — chart lifecycle + series registry (add/remove/get/clearAll by key)
-- Introduce `PriceChart.tsx` (supersedes `CandlestickChart.tsx`) — multi-series, type-switchable
-- `contextRef` upgraded: tracks `{ symbol, interval, chartType }` — full context for reset detection
-- Volume histogram — `HistogramSeries` on `priceScaleId: 'volume'`, directional green/red coloring
-- Chart type toggle — `ChartTypeSelector` (Candles | Line), series swap without chart recreation
-- Pane strategy defined: Pane 0 (price + overlays + volume), Pane 1+ (oscillators)
-- Indicator hook contract documented: `useXxxIndicator(engine, candles, options) => void`
-- Render performance: price scale reset scoped to symbol change only (not interval or chart type)
-- All existing architecture constraints preserved: charts remain downstream consumers
+**Status:** COMPLETE — committed (`55225dc`), pushed, included in PR #1
+**Completed:** 2026-05-18
 
 **New files:**
 - `frontend/src/types/chart.ts` — `ChartType`, `SeriesKey`, `PriceChartContext`
@@ -181,22 +141,22 @@ require a series registry, a composition contract, and a pane strategy. Phase 3C
 - `frontend/src/components/charts/CandlestickChart.tsx` — superseded by `PriceChart.tsx`
 
 **Completion Conditions:**
-- [ ] `useChartEngine` hook — series registry with add/remove/get/clearAll, chart lifecycle
-- [ ] `PriceChart.tsx` — renders candlestick or line based on `chartType` prop
-- [ ] Volume histogram visible — directional coloring, isolated scale, bottom 25% of pane
-- [ ] Chart type toggle working — Candles ↔ Line, no chart recreation on switch
-- [ ] Volume persists across chart type switch
-- [ ] `ChartTypeSelector` renders in dashboard header
-- [ ] `contextRef` tracks `{ symbol, interval, chartType }` — all three dimensions
-- [ ] Price scale reset only fires on symbol change
-- [ ] `ARCHITECTURE.md` updated — chart engine API, pane convention, indicator hook contract
-- [ ] `DECISIONS.md` — DEC-018 added (chart engine architecture)
-- [ ] Zero TypeScript errors (`npm run build` clean)
-- [ ] Human runtime verification checklist
-- [ ] Commit + PR to `develop`
+- [x] `useChartEngine` hook — series registry with add/remove/get/clearAll, chart lifecycle
+- [x] `PriceChart.tsx` — renders candlestick or line based on `chartType` prop
+- [x] Volume histogram visible — directional coloring, isolated scale, bottom 25% of pane
+- [x] Chart type toggle working — Candles ↔ Line, no chart recreation on switch
+- [x] Volume persists across chart type switch
+- [x] `ChartTypeSelector` renders in dashboard header
+- [x] `contextRef` tracks `{ symbol, interval, chartType }` — all three dimensions
+- [x] Price scale reset only fires on symbol change
+- [x] `ARCHITECTURE.md` updated — chart engine API, pane convention, indicator hook contract
+- [x] `DECISIONS.md` — DEC-018 added (chart engine architecture)
+- [x] Zero TypeScript errors (`npm run build` clean)
+- [x] Human runtime verification checklist
+- [x] Commit + PR to `develop`
 
-### Architecture Decision (Phase 3)
-- **OHLCV source:** Browser-direct Binance REST (no Vercel Function proxy) — deferred to Phase 4 (DEC-017)
+### Architecture Decisions (Phase 3)
+- **OHLCV source:** Browser-direct Binance REST (no Vercel Function proxy) — deferred (DEC-017)
 - **Stream manager:** Evolved `BinanceCryptoSource` (not a new class) — DEC-016
 - **Chart engine:** `useChartEngine` hook — series registry pattern (DEC-018, Phase 3C)
 - **Execution order:** 3A → 3B → 3C. Each sub-phase verified before the next begins — MANDATORY
@@ -205,17 +165,14 @@ require a series registry, a composition contract, and a pane strategy. Phase 3C
 
 ## Phase 4 — Market Intelligence + Analytics Ecosystem
 
-**Status:** DEFINED — begins after Phase 3C (complete)
-**Depends On:** Phase 3
-
-### Rationale
-
-Phase 3 established real-time data infrastructure. Phase 4 shifts from raw data to contextual intelligence — coin identity, global market ranking, market-wide movers. This is the beginning of the platform intelligence layer.
+**Status:** COMPLETE (Phase 4A + 4B runtime-verified — pending close-out commit)
+**Completed:** 2026-05-19
 
 ### Sub-phases
 
 #### Phase 4A — Symbol Metadata Enrichment
-**Status:** DEFINED
+**Status:** COMPLETE — runtime verified locally
+**Completed:** 2026-05-19
 
 **Objectives:**
 - CoinGecko REST client (`api/rest/coingecko.ts`) — leaf module, standalone functions, no class
@@ -231,56 +188,70 @@ Phase 3 established real-time data infrastructure. Phase 4 shifts from raw data 
 - coinMetadata keyed by baseAsset — future-safe for non-USDT pairs and forex
 
 **Completion Conditions:**
-- [ ] `types/metadata.ts` — CoinMeta, GlobalMarketStats, TopMoverCoin
-- [ ] `api/rest/coingecko.ts` — fetchCoinMetadata, fetchGlobalStats, fetchTopMovers
-- [ ] `useMarketStore.coinMetadata` slice — setCoinMetadata, getCoinMeta
-- [ ] `useMetadataEnrichment` hook — called from App.tsx, deposits top 100 coins
-- [ ] Sidebar logos visible for all default watchlist symbols
-- [ ] Dashboard header shows coin name + rank
-- [ ] Graceful fallback for symbols not in top 100
-- [ ] Zero TypeScript errors
-- [ ] Human runtime verification
+- [x] `types/metadata.ts` — CoinMeta, GlobalMarketStats, TopMoverCoin
+- [x] `api/rest/coingecko.ts` — fetchCoinMetadata, fetchGlobalStats, fetchMarketMovers
+- [x] `useMarketStore.coinMetadata` slice — setCoinMetadata, getCoinMeta
+- [x] `useMetadataEnrichment` hook — called from App.tsx, deposits top 100 coins
+- [x] Sidebar logos visible for all default watchlist symbols
+- [x] Dashboard header shows coin name + rank
+- [x] Graceful fallback for symbols not in top 100
+- [x] Zero TypeScript errors
+- [x] Human runtime verification
 
-#### Phase 4B — Market Overview Panel
-**Status:** DEFINED (after Phase 4A)
+#### Phase 4B — Market Overview Panel + Analytics Orchestration
+**Status:** COMPLETE — runtime verified locally (3 screenshot sessions)
+**Completed:** 2026-05-19
 
-**Objectives:**
-- Top gainers + losers panel — CoinGecko /coins/markets sorted by 24h change
-- Global market stats row — total market cap, BTC dominance (CoinGecko /global)
-- useMarketOverview hook — refetchInterval: 10min (CoinGecko free tier safe)
-- MarketOverview component — below stat cards on DashboardPage
+**Architecture decision (DEC-020):** Analytics Orchestrator Pattern — single `useAnalyticsOrchestrator`
+hook at AppCore level (mirrors `usePriceStream` and `useMetadataEnrichment` patterns). Components
+are pure store consumers. No component-owned polling, no direct CoinGecko fetches in UI.
 
-**Architecture constraints:**
-- Market overview data lives in TanStack Query cache — server state, not Zustand
-- Polling at 10-minute interval — ~288 req/day combined, within CoinGecko free tier
-- No new WebSocket connections
+**Key decisions:**
+- Analytics state lives in Zustand (`useMarketStore.analytics`) — not TanStack Query cache only
+- 15min refresh cadence (9 req/hr = 216 req/day — well within CoinGecko free tier ~500/day)
+- CoinGecko free-tier ordering bug: `order=price_change_*` params silently ignored — fetches top-200
+  by market cap and sorts client-side instead of calling two broken sorted endpoints
+- `lastRefreshedAt` fires only when BOTH analytics queries complete a cycle — designed hook point
+  for future AI narrative systems
+- `MarketOverview` wrapped in `React.memo()` — prevents ~1/sec price-tick re-renders
 
 **Completion Conditions:**
-- [ ] useMarketOverview hook — useTopMovers + useGlobalStats, 10min refetch
-- [ ] MarketOverview component — gainers, losers, global stats
-- [ ] Integrated below stat cards on DashboardPage
-- [ ] Zero TypeScript errors
-- [ ] Human runtime verification
+- [x] `useAnalyticsOrchestrator` hook — parallel useQueries, deposits to analytics slice
+- [x] `useMarketStore.analytics` slice — topGainers, topLosers, globalStats, lastRefreshedAt
+- [x] `fetchMarketMovers(universeSize, topN)` — client-side sort/filter (free-tier bug workaround)
+- [x] `MarketOverview` component — global stats bar, gainers/losers tabs, skeleton loading
+- [x] `MarketOverview` wrapped in `React.memo()` — no price-tick re-renders
+- [x] Integrated below stat cards on DashboardPage
+- [x] `formatVolume` updated — trillion case for global market cap display
+- [x] Volume axis hidden — value surfaced via crosshair hover tooltip (volume bubble overlay)
+- [x] Page scrollable — `h-full` removed, responsive chart height (`clamp(300px, 45vh, 560px)`)
+- [x] Keyboard scroll — `tabIndex={-1}` on `<main>`
+- [x] `ANALYTICS_REFRESH_MS = 15 * 60 * 1000` — defined once, no magic literals
+- [x] Zero TypeScript errors (`npm run build` clean, 158.76KB gzipped)
+- [x] Human runtime verification (3 screenshot sessions)
 
 ### Architecture Decisions (Phase 4)
 - Metadata namespace: coinMetadata keyed by baseAsset — DEC-019
 - CoinGecko as leaf module: not a MarketDataSource — DEC-019
-- Market overview state: TanStack Query cache only (server state, not Zustand)
-- Rate limit: 10min polling for overview data — CoinGecko free tier safe
+- Analytics state: Zustand analytics slice (not TanStack Query cache only) — DEC-020
+- Analytics orchestration: single AppCore-level hook (not per-component polling) — DEC-020
+- Rate budget: 15min polling for analytics — 9 req/hr, 216 req/day — DEC-020
 
 ---
 
-## Phase 5 — Stabilization + Phase 2 Prep
+## Phase 5 — Stabilization + Production Hardening
 
 **Status:** PENDING
-**Depends On:** Phase 4
+**Depends On:** Phase 4 close-out + merge to develop
 
 ### Objectives
-- Error boundaries + WebSocket reconnection polish
-- Forex data source research + MarketDataSource connector abstraction
+- WebSocket reconnection UI indicator
+- React error boundaries
+- CI/CD: GitHub Actions (TypeScript check + ESLint + build gate)
+- Technical debt cleanup (TD-003, TD-004, TD-005, TD-006, TD-007, TD-010, TD-011, TD-012, TD-015, TD-017)
+- Production reliability instrumentation
 - Performance profiling
-- Tech debt cleanup
-- Prepare for forex integration
+- Merge `develop → main` as stable MVP release
 
 ---
 

@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { usePriceStream } from '@/hooks/usePriceStream'
 import { useMetadataEnrichment } from '@/hooks/useMetadataEnrichment'
+import { useAnalyticsOrchestrator } from '@/hooks/useAnalyticsOrchestrator'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +19,7 @@ const queryClient = new QueryClient({
 function AppCore() {
   usePriceStream()
   useMetadataEnrichment()
+  useAnalyticsOrchestrator()
 
   return (
     <BrowserRouter>

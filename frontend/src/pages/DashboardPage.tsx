@@ -6,6 +6,7 @@ import { TimeframeSelector } from '@/components/charts/TimeframeSelector'
 import { ChartTypeSelector } from '@/components/charts/ChartTypeSelector'
 import { formatPrice, formatVolume, formatChange } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import { MarketOverview } from '@/components/market/MarketOverview'
 import type { Interval } from '@/types/market'
 import type { ChartType } from '@/types/chart'
 
@@ -17,7 +18,7 @@ export function DashboardPage() {
   const [chartType, setChartType] = useState<ChartType>('candlestick')
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 pb-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {meta && (
@@ -67,7 +68,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="flex-1 rounded-lg border border-[var(--color-border)] overflow-hidden min-h-0">
+      <div className="h-[clamp(300px,45vh,560px)] rounded-lg border border-[var(--color-border)] overflow-hidden">
         <PriceChart symbol={activeSymbol} interval={interval} chartType={chartType} />
       </div>
 
@@ -90,6 +91,8 @@ export function DashboardPage() {
           value={price ? `$${formatPrice(price.high24h)} / $${formatPrice(price.low24h)}` : null}
         />
       </div>
+
+      <MarketOverview />
     </div>
   )
 }
