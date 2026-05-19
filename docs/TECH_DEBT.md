@@ -198,14 +198,44 @@ No automated deployment gates, no rollback automation.
 
 ---
 
-### TD-014 — No Line Chart Toggle
+### TD-014 — No Line Chart Toggle — RESOLVED Phase 3C
 
-**Added:** 2026-05-18 | **Priority:** MEDIUM | **Target:** Phase 3C
-**Phase Introduced:** Phase 3B
+**Resolved:** 2026-05-18 — `ChartTypeSelector` + `PriceChart` + `useChartEngine.addSeries()` deliver Candles ↔ Line switching without chart recreation.
 
-**Description:** ROADMAP.md Phase 3 originally included "Candlestick + Line chart with toggle." Not delivered in Phase 3B. `CandlestickChart` only renders candlestick. No mechanism exists to swap series type without chart recreation.
+---
 
-**When to Address:** Phase 3C. The `useChartEngine` series registry enables clean series swapping. `ChartTypeSelector` and `PriceChart` deliver this as part of Phase 3C scope.
+### TD-015 — `useChartEngine` Methods Not Memoized
+
+**Added:** 2026-05-18 | **Priority:** LOW | **Target:** Phase 5
+**Phase Introduced:** Phase 3C
+
+**Description:** `addSeries`, `removeSeries`, `getSeries`, `clearAllSeries` are plain functions inside `useChartEngine` — new references on every render. `react-hooks/exhaustive-deps` ESLint rule (unenforced — TD-007) would flag consumers using these in effect deps. Currently harmless because all functions close over stable refs (`chartRef`, `registryRef`).
+
+**When to Address:** Phase 5 when CI/CD adds ESLint. Wrap all engine methods in `useCallback` with empty deps arrays (refs are stable, no real deps).
+
+---
+
+### TD-016 — `coinMetadata` baseAsset Derivation Uses USDT-Strip Heuristic
+
+**Added:** 2026-05-18 | **Priority:** LOW | **Target:** Phase 6 (Forex)
+**Phase Introduced:** Phase 4A (architecture decision)
+
+**Description:** `getCoinMeta(binanceSymbol)` strips the "USDT" suffix to derive `baseAsset`: `'BTCUSDT'.replace(/USDT$/, '') === 'BTC'`. Correct for all USDT pairs (the only pairs `AddSymbolSearch` allows). Becomes incorrect for non-USDT pairs (e.g., BTCBUSD, BTCEUR) or forex pairs.
+
+**When to Address:** Phase 6 (Forex integration). At that point, `baseAsset` should be stored explicitly alongside each watchlist item, or derived from a proper symbol registry lookup.
+
+---
+
+### TD-017 — `DashboardPage` Re-renders Header on Every Price Tick
+
+**Added:** 2026-05-19 | **Priority:** LOW | **Target:** Phase 5
+**Phase Introduced:** Phase 4A
+
+**Description:** `DashboardPage` subscribes to both `tickers[activeSymbol]` (volatile — updates ~1/sec) and `getCoinMeta(activeSymbol)` (stable — only changes on metadata load) in the same component scope. On every price tick, the entire component re-renders including the header elements that display coin name, market cap rank, and logo. The React DOM diff detects no attribute changes for those elements, so no DOM mutations or network requests occur — behavior is correct. It is a needless re-render of stable UI on each tick.
+
+**Accepted Because:** At 1 re-render/sec the performance cost is negligible at MVP scale. Structural fix (extracting `DashboardHeader` sub-component) is premature at this stage.
+
+**When to Address:** Phase 5 performance pass. Extract a `DashboardHeader` component that reads only `meta` and is isolated from the price tick subscription. The stat cards (which read `price`) can re-render independently without pulling the header along.
 
 ---
 

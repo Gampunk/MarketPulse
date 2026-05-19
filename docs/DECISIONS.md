@@ -406,3 +406,32 @@ feature/* → develop (preview deploy) → main (production deploy)
 **Governance Rule:** Indicator hooks must use `engine.addSeries()` — never `chartRef.current.addSeries()` directly. This ensures all series are tracked in the registry and cleaned up correctly.
 
 **Decision Confidence:** HIGH
+
+---
+
+## DEC-019 — Metadata Architecture: `coinMetadata` Slice + CoinGecko as Leaf Module
+
+**Date:** 2026-05-18
+**Status:** APPROVED — ACTIVE (Phase 4A)
+
+**Decision:** CoinGecko coin metadata is stored in a dedicated `coinMetadata: Record<string, CoinMeta>` slice in `useMarketStore`, keyed by `baseAsset` uppercase (e.g., `"BTC"`). CoinGecko is implemented as a leaf REST module (`api/rest/coingecko.ts`) — not a `MarketDataSource` implementation and never owns a WebSocket. Metadata is deposited via `useMetadataEnrichment` hook called from `App.tsx`.
+
+**Context:** Phase 4A introduces CoinGecko coin logos, names, and market cap ranks. The key architectural question was where this data lives and how components access it.
+
+**Alternatives Considered:**
+- **Enrich existing `symbols` slice** (`setSymbols()` with CoinGecko data): Risk of merge conflict with Binance exchange info; namespace mismatch (CoinGecko coins vs. Binance pairs); `setSymbols()` replaces atomically — partial enrichment would overwrite other data.
+- **Component-level CoinGecko fetch** (each component fetches its own metadata): Violates centralized market ownership rule; N API calls instead of 1; cache fragmented per component.
+- **Separate `coinMetadata` Zustand store** (outside `useMarketStore`): Proliferates stores for the same data domain; market data is one domain.
+
+**Rationale:**
+- `coinMetadata` is market data (metadata about coins) — belongs in `useMarketStore` alongside tickers, klines, symbols
+- Keyed by `baseAsset` (not Binance pair) because CoinGecko is coin-centric, not pair-centric — a BTC entry covers BTCUSDT, BTCBUSD, BTCEUR without duplication
+- CoinGecko as a leaf module preserves `MarketDataSource` abstraction — CoinGecko is metadata, not a stream source
+- `useMetadataEnrichment` at app root follows the same side-effect hook pattern as `useKlineData` — deposit into store, return nothing, consumers read from store
+- Market overview data (top movers, global stats) lives in TanStack Query cache — it's server state that refreshes periodically, not push data
+
+**Constraints:**
+- `getCoinMeta(binanceSymbol)` strips "USDT" suffix to derive baseAsset — correct for all current pairs (USDT-only watchlist). Must not be extended to non-USDT pairs without revisiting (TD-016).
+- Chart engine must remain ignorant of `coinMetadata` — metadata enrichment and chart rendering are decoupled concerns.
+
+**Decision Confidence:** HIGH

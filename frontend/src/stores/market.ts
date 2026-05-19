@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { PriceChange, Candle, Interval, MarketSymbol, ConnectionStatus } from '@/types/market'
+import type { CoinMeta } from '@/types/metadata'
 
 // Stable empty reference — safe to return from getKlines when no data exists.
 // A literal [] would create a new reference on every call, breaking Zustand reactive selectors.
@@ -29,6 +30,14 @@ interface MarketStore {
   // Symbol metadata slice — populated in Phase 4 via CoinGecko
   symbols: Record<string, MarketSymbol>
   setSymbols: (symbols: MarketSymbol[]) => void
+
+  // CoinGecko coin metadata — keyed by baseAsset uppercase ('BTC', 'ETH').
+  // Separate from Binance exchange symbols — different namespace, different source.
+  coinMetadata: Record<string, CoinMeta>
+  setCoinMetadata: (entries: CoinMeta[]) => void
+  // Derives baseAsset from a Binance pair symbol by stripping USDT suffix.
+  // Valid for all USDT pairs (the only pairs AddSymbolSearch allows — TD-016).
+  getCoinMeta: (binanceSymbol: string) => CoinMeta | undefined
 
   // Connection state slice — driven by BinanceCryptoSource lifecycle events
   connection: ConnectionState
@@ -111,6 +120,28 @@ export const useMarketStore = create<MarketStore>()(
           false,
           'symbols/set'
         ),
+
+      // ── CoinGecko coin metadata ───────────────────────────────────────────
+      coinMetadata: {},
+      setCoinMetadata: entries =>
+        set(
+          {
+            // Key by CoinGecko symbol uppercase — matches Binance baseAsset.
+            // CoinGecko returns symbol lowercase ('btc'); normalized to 'BTC' here.
+            // O(1) lookup in getCoinMeta — no scan required.
+            coinMetadata: Object.fromEntries(
+              entries.map(e => [e.symbol.toUpperCase(), e])
+            ),
+          },
+          false,
+          'coinMetadata/set'
+        ),
+      getCoinMeta: binanceSymbol => {
+        // Strip USDT suffix to derive baseAsset, then look up in coinMetadata.
+        // TD-016: heuristic valid for USDT pairs only.
+        const baseAsset = binanceSymbol.replace(/USDT$/, '')
+        return get().coinMetadata[baseAsset]
+      },
 
       // ── Connection ────────────────────────────────────────────────────────
       connection: {

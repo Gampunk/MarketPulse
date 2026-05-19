@@ -12,19 +12,37 @@ import type { ChartType } from '@/types/chart'
 export function DashboardPage() {
   const activeSymbol = useWatchlistStore(s => s.activeSymbol)
   const price = useMarketStore(s => s.tickers[activeSymbol])
+  const meta = useMarketStore(s => s.getCoinMeta(activeSymbol))
   const [interval, setSelectedInterval] = useState<Interval>('1m')
   const [chartType, setChartType] = useState<ChartType>('candlestick')
 
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-[var(--color-text)]">
-            {activeSymbol}
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Real-time market data
-          </p>
+        <div className="flex items-center gap-3">
+          {meta && (
+            <img
+              src={meta.logoUrl}
+              alt={meta.name}
+              className="w-8 h-8 rounded-full shrink-0"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            />
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-[var(--color-text)]">
+                {meta?.name ?? activeSymbol.replace(/USDT$/, '')}
+              </h1>
+              {meta && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-text-muted)]">
+                  #{meta.marketCapRank}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {activeSymbol} · Real-time market data
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <ChartTypeSelector type={chartType} onChange={setChartType} />

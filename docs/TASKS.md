@@ -1,7 +1,7 @@
 # TASKS.md
 
-**Last Updated:** 2026-05-18
-**Current Phase:** Phase 3C — Chart System Consolidation + Advanced Chart Foundation
+**Last Updated:** 2026-05-19
+**Current Phase:** Phase 4A — Symbol Metadata Enrichment (implementation complete, pending VER)
 
 ---
 
@@ -67,9 +67,69 @@
 
 ### 3C-F — Phase 3C Close-Out
 
-- [ ] P3C-VER: Human runtime verification — chart type toggle, volume visible, symbol switch, interval switch, live updates, no memory leaks
-- [ ] P3C-CMT: Commit Phase 3C (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
-- [ ] P3C-PR: Push → PR `feature/live-price-engine` → `develop`
+- [x] P3C-VER: Human runtime verification — line chart, volume histogram, chart type toggle, volume persistence, symbol switch, interval switch, live updates, singleton WS preserved
+- [x] P3C-CMT: Committed (`55225dc`) — `user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`
+- [x] P3C-PR: Pushed — included in PR #1 (`feature/live-price-engine → develop`)
+
+---
+
+## Upcoming Tasks (Phase 4A — Symbol Metadata Enrichment)
+
+### 4A-001 — Type Foundation
+- [x] P4A-001: Create `frontend/src/types/metadata.ts`
+  - `CoinMeta` — `{ id, symbol, name, logoUrl, marketCapRank }` (`symbol` added — required for store keying)
+  - `GlobalMarketStats` — `{ totalMarketCapUsd, btcDominancePct, marketCapChange24hPct }`
+  - `TopMoverCoin` — `{ id, symbol, name, logoUrl, marketCapRank, changePct24h, priceUsd }`
+
+### 4A-002 — CoinGecko REST Client
+- [x] P4A-002: Create `frontend/src/api/rest/coingecko.ts`
+  - `fetchCoinMetadata()` — top 100 coins by market cap, `/coins/markets?per_page=100&order=market_cap_desc`
+  - `fetchGlobalStats()` — `/global` endpoint (Phase 4B ready)
+  - `fetchTopMovers(limit)` — top gainers/losers (Phase 4B ready)
+  - Pattern: module-level `REST_BASE`, standalone functions, no class
+
+### 4A-003 — Store Enrichment
+- [x] P4A-003: Add `coinMetadata` slice to `useMarketStore`
+  - Keyed by `e.symbol.toUpperCase()` ("BTC") — matches `getCoinMeta` USDT-strip heuristic
+  - `setCoinMetadata`, `getCoinMeta` implemented
+
+### 4A-004 — Metadata Enrichment Hook
+- [x] P4A-004: Create `frontend/src/hooks/useMetadataEnrichment.ts`
+  - TanStack Query, `staleTime: 60 * 60 * 1000`, side-effect hook
+- [x] P4A-005: `AppCore` pattern in `App.tsx` — `useMetadataEnrichment()` runs inside `QueryClientProvider`
+
+### 4A-005 — UI Enrichment
+- [x] P4A-006: `Sidebar.tsx` — `CoinIcon` component (logo img + TrendingUp fallback), coin name secondary text, baseAsset display
+- [x] P4A-007: `DashboardPage.tsx` — header: logo, coin name, rank badge, `{activeSymbol} · Real-time market data`
+
+### 4A-006 — Validation
+- [x] P4A-008: `npm run build` → 0 TypeScript errors (720ms, 156KB gzipped)
+- [ ] P4A-VER: Human runtime verification — logos visible in sidebar, name + rank in header, fallback works for unknown coins
+
+---
+
+## Upcoming Tasks (Phase 4B — Market Overview Panel)
+
+### 4B-001 — Overview Hook
+- [ ] P4B-001: Create `frontend/src/hooks/useMarketOverview.ts`
+  - `useTopMovers()` — TanStack Query, `refetchInterval: 10 * 60 * 1000`, returns top 5 gainers + 5 losers
+  - `useGlobalStats()` — TanStack Query, same `refetchInterval`
+  - Both: `refetchOnWindowFocus: false`
+
+### 4B-002 — Overview Component
+- [ ] P4B-002: Create `frontend/src/components/market/MarketOverview.tsx`
+  - Top Gainers section — logo, name, rank, 24h% (green)
+  - Top Losers section — logo, name, rank, 24h% (red)
+  - Global stats row — total market cap, BTC dominance %, 24h market change
+- [ ] P4B-003: Add `<MarketOverview />` below stat cards in `DashboardPage.tsx`
+
+### 4B-003 — Validation
+- [ ] P4B-004: `npm run build` → 0 TypeScript errors
+- [ ] P4B-VER: Human runtime verification — overview panel visible, data refreshes, no WS regression
+
+### 4B-004 — Phase 4 Close-Out
+- [ ] P4-CMT: Commit Phase 4 (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`)
+- [ ] P4-PR: Push → PR update `feature/live-price-engine` → `develop`
 
 ---
 

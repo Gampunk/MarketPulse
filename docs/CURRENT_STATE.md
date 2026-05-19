@@ -1,22 +1,23 @@
 # CURRENT_STATE.md
 
 **Last Updated:** 2026-05-18
-**Current Phase:** Phase 3C — Chart System Consolidation (DEFINED — pending Phase 3B commit)
+**Current Phase:** Phase 4A — Symbol Metadata Enrichment (DEFINED — ready to implement)
 **System State:** BUILDING
 
 ---
 
 ## Active Focus
 
-Phase 3B is runtime-verified and complete — pending commit + PR to `develop`. Phase 3C is formally defined and begins after Phase 3B administrative close-out.
+Phase 3B + 3C are complete — committed and pushed (PR #1 open: `feature/live-price-engine → develop`). Phase 4A (Symbol Metadata Enrichment) is formally defined and ready to implement.
 
-**Git flow rule:** `feature/live-price-engine → develop → (stabilize) → main`. Do NOT merge to main until chart system consolidation (Phase 3C) is complete and verified.
+**Git flow rule:** `feature/live-price-engine → develop → (stabilize) → main`. Do NOT merge to main until Phase 4 is complete and the develop branch is stable.
 
-**Critical architecture rule (enforced Phase 3B+):**
-Charts are consumers of centralized market state — never owners. Charts must: subscribe to Zustand store slices only, consume `useKlineData`/store outputs, never fetch from Binance directly, never manage WebSocket lifecycle, never own realtime infrastructure state, never duplicate candle merge logic.
-
-**Phase 3C architecture rule (new):**
-Chart series are managed through a `useChartEngine` hook series registry — never via individual named refs. All add/remove/swap operations go through the registry. Future indicator hooks compose with the chart via the engine API — never by reaching into component refs directly.
+**Critical architecture rules (enforced Phase 3B+):**
+- Charts are consumers of centralized market state — never owners
+- Chart series managed through `useChartEngine` registry — never individual named refs
+- CoinGecko is a leaf REST module — never a MarketDataSource, never owns WebSocket
+- Metadata flow: CoinGecko REST → hook → `useMarketStore.coinMetadata` → components only
+- `coinMetadata` keyed by baseAsset — chart engine has zero knowledge of CoinGecko
 
 ---
 
@@ -97,20 +98,29 @@ Vercel Project
 
 ---
 
+## What Is Working (Phase 3C complete)
+
+| Feature                          | Status      |
+|----------------------------------|-------------|
+| `useChartEngine` hook            | BUILT ✓     |
+| `PriceChart` (multi-series)      | BUILT ✓     |
+| Volume histogram (directional)   | BUILT ✓     |
+| Chart type toggle (Candles/Line) | BUILT ✓     |
+| Series registry + pane governance| BUILT ✓     |
+
 ## What Is Placeholder / Not Yet Built
 
 | Feature                          | Status      | Phase   |
 |----------------------------------|-------------|---------|
-| `useChartEngine` hook            | NOT BUILT   | Phase 3C|
-| `PriceChart` (multi-series)      | NOT BUILT   | Phase 3C|
-| Volume histogram                 | NOT BUILT   | Phase 3C|
-| Chart type toggle (Candles/Line) | NOT BUILT   | Phase 3C|
-| Indicator/overlay foundation     | NOT BUILT   | Phase 3C|
-| Supabase database schema         | NOT CREATED | Phase 4 |
-| Vercel Functions / Backend API   | NOT DEPLOYED| Phase 4 |
-| Coin metadata (logos, names)     | NOT BUILT   | Phase 4 |
-| Market overview panel            | NOT BUILT   | Phase 4 |
-| CoinGecko integration            | NOT BUILT   | Phase 4 |
+| Coin metadata (logos, names)     | NOT BUILT   | Phase 4A|
+| `coinMetadata` store slice       | NOT BUILT   | Phase 4A|
+| CoinGecko REST client            | NOT BUILT   | Phase 4A|
+| `useMetadataEnrichment` hook     | NOT BUILT   | Phase 4A|
+| Market overview panel            | NOT BUILT   | Phase 4B|
+| Top gainers/losers               | NOT BUILT   | Phase 4B|
+| Global market stats              | NOT BUILT   | Phase 4B|
+| Supabase database schema         | NOT CREATED | Phase 4+|
+| Vercel Functions / Backend API   | NOT DEPLOYED| Phase 4+|
 | WebSocket status indicator (UI)  | NOT BUILT   | Phase 5 |
 
 ---
@@ -123,7 +133,7 @@ None.
 
 ## Next Actions
 
-1. Commit Phase 3B (`user.name="Gampunk"`, `user.email="meetrao97@gmail.com"`) ← immediate
-2. Push → PR `feature/live-price-engine` → `develop` ← immediate
-3. Begin Phase 3C implementation (see TASKS.md — tasks P3C-A01 through P3C-F)
-4. Do NOT merge to `main` until Phase 3C is complete and verified
+1. Implement Phase 4A — begin with `types/metadata.ts` (P4A-001)
+2. Follow task order: types → coingecko REST → store slice → enrichment hook → UI enrichment
+3. Do NOT begin Phase 4B until Phase 4A is runtime-verified
+4. Do NOT merge to `main` until Phase 4 is complete and the develop preview is stable

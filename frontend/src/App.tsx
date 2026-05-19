@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { usePriceStream } from '@/hooks/usePriceStream'
+import { useMetadataEnrichment } from '@/hooks/useMetadataEnrichment'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,23 +14,32 @@ const queryClient = new QueryClient({
   },
 })
 
-function App() {
+// AppCore runs inside QueryClientProvider — all app-level side-effect hooks go here.
+function AppCore() {
   usePriceStream()
+  useMetadataEnrichment()
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <AppLayout>
+              <DashboardPage />
+            </AppLayout>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <AppLayout>
-                <DashboardPage />
-              </AppLayout>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AppCore />
     </QueryClientProvider>
   )
 }

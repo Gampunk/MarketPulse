@@ -4,6 +4,7 @@ import { useMarketStore } from '@/stores/market'
 import { AddSymbolSearch } from '@/components/watchlist/AddSymbolSearch'
 import { formatPrice, formatChange } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import type { CoinMeta } from '@/types/metadata'
 
 export function Sidebar() {
   const { items, activeSymbol, setActiveSymbol, removeSymbol } = useWatchlistStore()
@@ -44,6 +45,7 @@ interface WatchlistRowProps {
 
 function WatchlistRow({ symbol, isActive, onSelect, onRemove }: WatchlistRowProps) {
   const price = useMarketStore(s => s.tickers[symbol])
+  const meta = useMarketStore(s => s.getCoinMeta(symbol))
 
   return (
     <div className="group relative">
@@ -56,11 +58,25 @@ function WatchlistRow({ symbol, isActive, onSelect, onRemove }: WatchlistRowProp
             : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]'
         )}
       >
-        <TrendingUp className="w-3.5 h-3.5 shrink-0 text-[var(--color-accent)] mt-0.5" />
+        <CoinIcon meta={meta} />
         <div className="flex-1 min-w-0">
-          <span className="block font-mono text-xs font-medium truncate">{symbol}</span>
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            <span className="font-mono text-xs font-medium truncate">
+              {symbol.replace(/USDT$/, '')}
+            </span>
+            {meta && (
+              <span className="text-[10px] text-[var(--color-text-muted)] truncate hidden group-hover:hidden">
+                #{meta.marketCapRank}
+              </span>
+            )}
+          </div>
+          {meta && (
+            <span className="block text-[10px] text-[var(--color-text-muted)] truncate leading-none mb-0.5">
+              {meta.name}
+            </span>
+          )}
           {price ? (
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center gap-1.5">
               <span className="font-mono text-xs text-[var(--color-text)]">
                 ${formatPrice(price.price)}
               </span>
@@ -76,7 +92,7 @@ function WatchlistRow({ symbol, isActive, onSelect, onRemove }: WatchlistRowProp
               </span>
             </div>
           ) : (
-            <span className="block text-[10px] text-[var(--color-text-muted)] mt-0.5 animate-pulse">
+            <span className="block text-[10px] text-[var(--color-text-muted)] animate-pulse">
               —
             </span>
           )}
@@ -95,4 +111,18 @@ function WatchlistRow({ symbol, isActive, onSelect, onRemove }: WatchlistRowProp
       </button>
     </div>
   )
+}
+
+function CoinIcon({ meta }: { meta: CoinMeta | undefined }) {
+  if (meta) {
+    return (
+      <img
+        src={meta.logoUrl}
+        alt={meta.name}
+        className="w-4 h-4 shrink-0 rounded-full mt-0.5"
+        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+      />
+    )
+  }
+  return <TrendingUp className="w-3.5 h-3.5 shrink-0 text-[var(--color-accent)] mt-0.5" />
 }

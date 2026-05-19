@@ -203,17 +203,70 @@ require a series registry, a composition contract, and a pane strategy. Phase 3C
 
 ---
 
-## Phase 4 — Dashboard Depth
+## Phase 4 — Market Intelligence + Analytics Ecosystem
 
-**Status:** PENDING
+**Status:** DEFINED — begins after Phase 3C (complete)
 **Depends On:** Phase 3
 
-### Objectives
-- Market overview panel (top gainers/losers)
-- Global market stats (BTC dominance, total cap via CoinGecko)
-- Coin metadata panel (logos, market cap, via CoinGecko)
-- Volume bars on charts
-- Dark mode polish + UI refinement
+### Rationale
+
+Phase 3 established real-time data infrastructure. Phase 4 shifts from raw data to contextual intelligence — coin identity, global market ranking, market-wide movers. This is the beginning of the platform intelligence layer.
+
+### Sub-phases
+
+#### Phase 4A — Symbol Metadata Enrichment
+**Status:** DEFINED
+
+**Objectives:**
+- CoinGecko REST client (`api/rest/coingecko.ts`) — leaf module, standalone functions, no class
+- `coinMetadata` slice in `useMarketStore` — keyed by baseAsset ("BTC"), separate from exchange symbols
+- `useMetadataEnrichment` hook — TanStack Query at app root level (stale 1hr), deposits into store
+- Sidebar: coin logo + name in WatchlistRow — graceful fallback if no metadata
+- Dashboard header: coin name + market cap rank badge
+
+**Architecture constraints:**
+- CoinGecko is a leaf REST module — never a MarketDataSource, never owns WebSocket
+- Metadata flow: CoinGecko REST → useMetadataEnrichment → useMarketStore.coinMetadata → components
+- Chart engine has zero knowledge of CoinGecko — metadata and chart layers fully decoupled
+- coinMetadata keyed by baseAsset — future-safe for non-USDT pairs and forex
+
+**Completion Conditions:**
+- [ ] `types/metadata.ts` — CoinMeta, GlobalMarketStats, TopMoverCoin
+- [ ] `api/rest/coingecko.ts` — fetchCoinMetadata, fetchGlobalStats, fetchTopMovers
+- [ ] `useMarketStore.coinMetadata` slice — setCoinMetadata, getCoinMeta
+- [ ] `useMetadataEnrichment` hook — called from App.tsx, deposits top 100 coins
+- [ ] Sidebar logos visible for all default watchlist symbols
+- [ ] Dashboard header shows coin name + rank
+- [ ] Graceful fallback for symbols not in top 100
+- [ ] Zero TypeScript errors
+- [ ] Human runtime verification
+
+#### Phase 4B — Market Overview Panel
+**Status:** DEFINED (after Phase 4A)
+
+**Objectives:**
+- Top gainers + losers panel — CoinGecko /coins/markets sorted by 24h change
+- Global market stats row — total market cap, BTC dominance (CoinGecko /global)
+- useMarketOverview hook — refetchInterval: 10min (CoinGecko free tier safe)
+- MarketOverview component — below stat cards on DashboardPage
+
+**Architecture constraints:**
+- Market overview data lives in TanStack Query cache — server state, not Zustand
+- Polling at 10-minute interval — ~288 req/day combined, within CoinGecko free tier
+- No new WebSocket connections
+
+**Completion Conditions:**
+- [ ] useMarketOverview hook — useTopMovers + useGlobalStats, 10min refetch
+- [ ] MarketOverview component — gainers, losers, global stats
+- [ ] Integrated below stat cards on DashboardPage
+- [ ] Zero TypeScript errors
+- [ ] Human runtime verification
+
+### Architecture Decisions (Phase 4)
+- Metadata namespace: coinMetadata keyed by baseAsset — DEC-019
+- CoinGecko as leaf module: not a MarketDataSource — DEC-019
+- Market overview state: TanStack Query cache only (server state, not Zustand)
+- Rate limit: 10min polling for overview data — CoinGecko free tier safe
 
 ---
 
